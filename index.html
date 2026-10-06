@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Puck body explorer (iPad)</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0a;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #stage {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  svg#puckSvg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .line {
+    position: absolute;
+    pointer-events: none;
+  }
+  .line-h { height: 2px; width: 100%; left: 0; }
+  .line-v { width: 2px; height: 100%; top: 0; }
+
+  .dot {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin-left: -10px;
+    margin-top: -10px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .label {
+    position: absolute;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 4px #000;
+  }
+
+  .puckLabel {
+    position: absolute;
+    color: #39ff88;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
+  }
+
+  #hud {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    max-width: calc(100% - 24px);
+    color: #ffffff;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    background: rgba(255,255,255,0.06);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border-left: 3px solid #e8311d;
+    touch-action: manipulation;
+  }
+
+  #hud * {
+    touch-action: manipulation;
+  }
+
+  #hud .status {
+    font-weight: 700;
+  }
+
+  #hud .status.detected { color: #39ff88; }
+  #hud .status.none { color: #888; }
+
+  #puckDots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .puckDot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #333;
+    border: 1px solid #444;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .puckDot.lit {
+    background: #39ff88;
+    border-color: #39ff88;
+    box-shadow: 0 0 6px #39ff88, 0 0 12px #39ff8899;
+  }
+
+  .toggleSwitch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .toggleSwitch .switch {
+    width: 40px;
+    height: 24px;
+    border-radius: 12px;
+    background: #3a3a3a;
+    position: relative;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .toggleSwitch .switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    transition: transform 0.2s ease;
+  }
+
+  .toggleSwitch.on .switch { background: #39ff88; }
+  .toggleSwitch.on .switch::after { transform: translateX(16px); }
+
+  .toggleSwitch .switchLabel {
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+  }
+
+  .halo {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid #39ff88;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: haloPulse 1.1s ease-in-out infinite;
+  }
+
+  @keyframes haloPulse {
+    0%   { width: var(--halo-min-px); height: var(--halo-min-px); opacity: 0.85; }
+    50%  { width: var(--halo-max-px); height: var(--halo-max-px); opacity: 0.3; }
+    100% { width: var(--halo-min-px); height: var(--halo-min-px); opacity: 0.85; }
+  }
+
+  #haloCenterPanel {
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: rgba(20,20,20,0.9);
+    border: 1px solid #333;
+    border-left: 3px solid #e8311d;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    color: #fff;
+    touch-action: manipulation;
+    z-index: 50;
+  }
+
+  #haloCenterPanel * {
+    touch-action: manipulation;
+  }
+
+  #haloCenterPanel.visible { display: flex; }
+
+  #haloCenterPanel .panelTitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ccc;
+    margin-bottom: 2px;
+  }
+
+  #haloCenterPanel .nudgeGrid {
+    display: grid;
+    grid-template-columns: 40px 40px 40px;
+    grid-template-rows: 40px 40px 40px;
+    gap: 4px;
+  }
+
+  #haloCenterPanel .nudgeGrid button {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  #haloCenterPanel button {
+    pointer-events: auto;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    color: #ccc;
+    font-size: 15px;
+    border: none;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #haloCenterPanel .nudgeGrid button {
+    width: 40px;
+    height: 40px;
+  }
+
+  #haloCenterPanel .nudgeUp    { grid-column: 2; grid-row: 1; }
+  #haloCenterPanel .nudgeLeft  { grid-column: 1; grid-row: 2; }
+  #haloCenterPanel .nudgeRight { grid-column: 3; grid-row: 2; }
+  #haloCenterPanel .nudgeDown  { grid-column: 2; grid-row: 3; }
+  #haloCenterPanel .nudgeCenterLabel {
+    grid-column: 2; grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #666;
+  }
+
+  #haloCenterPanel .offsetReadout {
+    font-size: 11px;
+    color: #39ff88;
+    margin-top: 2px;
+    text-align: center;
+  }
+
+  #haloCenterPanel .panelActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  #haloCenterPanel .panelActions button {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    width: auto;
+    height: auto;
+  }
+
+  #eqPanel {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: rgba(20,20,20,0.85);
+    border: 1px solid #333;
+    border-left: 3px solid #e8311d;
+    border-radius: 10px;
+    padding: 10px 14px;
+    pointer-events: none;
+  }
+
+  #eqBars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 90px;
+  }
+
+  .eqBar {
+    width: 16px;
+    min-height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: #39ff88;
+    transition: height 0.18s ease-out, background 0.18s ease-out;
+  }
+
+  #eqLabel {
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  #eqLabel .deg { color: #ffd339; }
+
+  #hud button {
+    pointer-events: auto;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    color: #ccc;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10,10,10,0.96);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    color: #fff;
+    text-align: center;
+    padding: 24px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+
+  .overlay * {
+    touch-action: manipulation;
+  }
+
+  .overlay.visible { display: flex; }
+
+  .overlay h2 { margin: 0 0 8px; font-size: 18px; }
+
+  .overlay p {
+    margin: 0 0 20px;
+    color: #aaa;
+    font-size: 13px;
+    max-width: 360px;
+    line-height: 1.5;
+  }
+
+  .overlay label {
+    display: block;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 4px;
+    text-align: left;
+  }
+
+  .overlay .field {
+    margin-bottom: 14px;
+    width: 200px;
+  }
+
+  .overlay input {
+    font-size: 16px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: #fff;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .overlay button.action {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    margin: 6px;
+    pointer-events: auto;
+  }
+
+  #profileList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 360px;
+    width: 100%;
+    max-height: 40vh;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+
+  .profileRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 10px 12px;
+    pointer-events: auto;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .profileRow:active {
+    background: rgba(255,255,255,0.12);
+  }
+
+  .profileRow .profileInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .profileRow .profileName {
+    font-size: 14px;
+    font-weight: 700;
+    color: #39ff88;
+  }
+
+  .profileRow .profileDims {
+    font-size: 11px;
+    color: #999;
+  }
+
+  .profileRow .profileChevron {
+    color: #666;
+    font-size: 16px;
+  }
+
+  .profileEmpty {
+    color: #777;
+    font-size: 13px;
+    padding: 12px;
+  }
+
+  .btn-save { background: #39ff88; color: #0a0a0a; }
+  .btn-cancel { background: #3a3a3a; color: #fff; }
+
+  #rulerLine {
+    height: 4px;
+    background: #39ff88;
+    box-shadow: 0 0 8px #39ff88;
+    margin-bottom: 6px;
+  }
+  .rulerCaps { display: flex; justify-content: space-between; width: 100%; }
+  .rulerTick { width: 2px; height: 14px; background: #39ff88; }
+  #rulerWrap { margin-bottom: 24px; }
+
+  .overlayStatus {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #39ff88;
+    min-height: 16px;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 34px;
+    left: 12px;
+    right: 12px;
+    color: #777;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #debug {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    color: #ffd339;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    pointer-events: none;
+    min-height: 16px;
+  }
+
+  /* ---------- Body layer (added) ---------- */
+  #bodyLayer { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: #1a272e; }
+  #bodyLayer canvas, #lens canvas { display: block; width: 100%; height: 100%; }
+  #hud, #eqPanel, #haloCenterPanel, #hint, #debug, #bodyPanel { z-index: 20; }
+  #stage, svg#puckSvg { z-index: 5; }
+  .puckLabel, .halo { z-index: 6; }
+  #lens {
+    position: fixed; left: 0; top: 0; z-index: 3; border-radius: 50%; overflow: hidden;
+    background: #1a272e; pointer-events: none; display: none;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+    transform: translate(-50%, -50%);
+  }
+  #modeLabels {
+    position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; display: none;
+    transform: translate(-50%, -100%); white-space: nowrap;
+    font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 15px; font-weight: 700; color: #fff;
+  }
+  #modeLabels span { margin: 0 8px; opacity: 0.35; transition: opacity 0.15s; }
+  #modeLabels span.on { opacity: 1; }
+  body.clean #stage, body.clean svg#puckSvg, body.clean .puckLabel, body.clean #eqPanel,
+  body.clean #hint, body.clean #debug { display: none !important; }
+
+  #bodyPanel {
+    position: fixed; left: 12px; bottom: 12px; width: 300px; display: none; flex-direction: column; gap: 10px;
+    background: rgba(20,20,20,0.92); border: 1px solid #333; border-left: 3px solid #db417b; border-radius: 10px;
+    padding: 12px 14px; color: #fff; font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 13px;
+    touch-action: manipulation;
+  }
+  #bodyPanel * { touch-action: manipulation; }
+  #bodyPanel.visible { display: flex; }
+  #bodyPanel .panelTitle { font-size: 12px; font-weight: 700; color: #ccc; }
+  #bodyPanel .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #bodyPanel .row label { color: #aaa; }
+  #bodyPanel output { font-weight: 700; font-variant-numeric: tabular-nums; }
+  #bodyPanel input[type="range"] { width: 100%; accent-color: #db417b; margin: 0; }
+  #bodyPanel button {
+    pointer-events: auto; cursor: pointer; background: rgba(255,255,255,0.1); color: #eee;
+    font: inherit; font-size: 13px; font-weight: 600; border: none; border-radius: 8px; padding: 9px 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #bodyPanel .btnRow { display: flex; gap: 8px; }
+  #bodyPanel .btnRow button { flex: 1; }
+  #bodyPanel .msg { color: #999; font-size: 12px; line-height: 1.4; margin: 0; }
+</style>
+</head>
+<body class="clean">
+<div id="bodyLayer"></div>
+<div id="lens"></div>
+<div id="modeLabels"><span data-i="-2">Skeletal</span><span data-i="-1">Nervous</span><span data-i="0">Outside</span><span data-i="1">Organs</span><span data-i="2">Circulatory</span></div>
+<div id="bodyPanel" class="ui visible">
+  <div class="panelTitle">Body</div>
+  <div class="row"><label for="lensRange">Lens size</label><output id="lensOut">22 mm</output></div>
+  <input type="range" id="lensRange" min="8" max="40" step="0.5" value="22">
+  <div class="row"><label for="labelRange">Label distance</label><output id="labelOut">12 mm</output></div>
+  <input type="range" id="labelRange" min="0" max="60" step="1" value="12">
+  <div class="row"><label for="stepRange">Turn per layer</label><output id="stepOut">35°</output></div>
+  <input type="range" id="stepRange" min="15" max="60" step="1" value="35">
+  <div class="btnRow">
+    <button id="btnStraight" type="button">Set straight</button>
+    <button id="bodyPanelClose" type="button">Close</button>
+  </div>
+  <p class="msg">Place the puck to see inside the body. Turn right for organs, then circulatory. Turn left for nervous, then skeletal.</p>
+</div>
+<div id="hud">
+  <div>Touches: <span id="touchCount">0</span></div>
+  <div>Puck: <span class="status none" id="puckStatus">not detected</span></div>
+  <div id="puckDots"></div>
+  <div id="crosshairToggle" class="toggleSwitch on">
+    <div class="switch"></div>
+    <div class="switchLabel">Crosshairs (H)</div>
+  </div>
+  <div id="haloToggle" class="toggleSwitch on">
+    <div class="switch"></div>
+    <div class="switchLabel">Halo</div>
+  </div>
+  <button id="calibrateBtn">Calibrate (c)</button>
+  <button id="geometryBtn">Puck geometry (p)</button>
+  <button id="centerHaloBtn">Center halo (x)</button>
+  <div id="overlayToggle" class="toggleSwitch">
+    <div class="switch"></div>
+    <div class="switchLabel">Tracker overlay (o)</div>
+  </div>
+  <button id="bodyBtn">Body (b)</button>
+</div>
+
+<div id="haloCenterPanel">
+  <div class="panelTitle">Center halo on puck</div>
+  <div class="nudgeGrid">
+    <button class="nudgeUp" data-dir="forward">▲</button>
+    <button class="nudgeLeft" data-dir="left">◀</button>
+    <div class="nudgeCenterLabel">puck<br>facing</div>
+    <button class="nudgeRight" data-dir="right">▶</button>
+    <button class="nudgeDown" data-dir="back">▼</button>
+  </div>
+  <div class="offsetReadout" id="haloOffsetReadout">fwd: 0.0mm  right: 0.0mm</div>
+  <div class="panelActions">
+    <button id="haloOffsetReset">Reset</button>
+    <button id="haloCenterClose">Close</button>
+  </div>
+</div>
+
+<div id="eqPanel">
+  <div id="eqBars"></div>
+  <div id="eqLabel"><span class="deg">0.0°</span></div>
+</div>
+
+<div id="hint">Place all 3 puck contacts down together. Individual touches not matching the puck pattern show as grey crosshairs.</div>
+<div id="debug"></div>
+
+<div id="stage"></div>
+<svg id="puckSvg">
+  <defs>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto">
+      <polygon points="0,0 10,5 0,10" fill="#ff5c8a" />
+    </marker>
+  </defs>
+</svg>
+
+<div class="overlay" id="calibrateOverlay">
+  <h2>Calibrate screen scale</h2>
+  <p>Place a real ruler against the line below and measure it in millimeters, then enter the actual measured length. This lets the tracker compare touch spacing to your puck's real dimensions.</p>
+  <div id="rulerWrap">
+    <div id="rulerLine" style="width: 300px;"></div>
+    <div class="rulerCaps" style="width: 300px;">
+      <div class="rulerTick"></div>
+      <div class="rulerTick"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label for="measuredMm">Measured length (mm)</label>
+    <input type="number" inputmode="decimal" id="measuredMm" placeholder="e.g. 79.4" />
+  </div>
+  <div>
+    <button class="action btn-save" id="calibrateSave">Save</button>
+    <button class="action btn-cancel" id="calibrateCancel">Cancel</button>
+  </div>
+  <div class="overlayStatus" id="calibrateStatus"></div>
+</div>
+
+<div class="overlay" id="geometryOverlay">
+  <div id="profileListView">
+    <h2>Puck profiles</h2>
+    <p>Each profile is a named isosceles triangle shape. The tracker checks every group of 3 touches against all profiles and labels a match by whichever shape it fits.</p>
+    <div id="profileList"></div>
+    <div class="panelActions">
+      <button class="action btn-save" id="profileAddNew">+ Add profile</button>
+      <button class="action btn-cancel" id="geometryCancel">Close</button>
+    </div>
+    <div class="overlayStatus" id="geometryStatus"></div>
+  </div>
+
+  <div id="profileEditView" style="display:none;">
+    <h2 id="profileEditTitle">Add profile</h2>
+    <div class="field">
+      <label for="profileName">Name</label>
+      <input type="text" id="profileName" placeholder="e.g. Puck A" />
+    </div>
+    <div class="field">
+      <label for="legLength">Leg length (mm) — the two equal sides</label>
+      <input type="number" inputmode="decimal" id="legLength" />
+    </div>
+    <div class="field">
+      <label for="baseLength">Base length (mm) — the third, differing side</label>
+      <input type="number" inputmode="decimal" id="baseLength" />
+    </div>
+    <div class="field">
+      <label for="tolerancePct">Match tolerance (%)</label>
+      <input type="number" inputmode="decimal" id="tolerancePct" />
+    </div>
+    <div class="panelActions">
+      <button class="action btn-save" id="profileSave">Save</button>
+      <button class="action btn-cancel" id="profileEditCancel">Back</button>
+      <button class="action btn-cancel" id="profileDelete" style="display:none;">Delete</button>
+    </div>
+    <div class="overlayStatus" id="profileEditStatus"></div>
+  </div>
+</div>
+
+<script>
+  const FALLBACK_PX_PER_MM = 96 / 25.4;
+  let pxPerMm = parseFloat(localStorage.getItem('puckVis_pxPerMm')) || FALLBACK_PX_PER_MM;
+
+  // ---------------------------------------------------------------
+  // Puck geometry profiles — each is a named isosceles triangle shape.
+  // Migrates a previously saved single geometry (if present) into the
+  // first profile so existing calibration isn't lost.
+  // ---------------------------------------------------------------
+  function loadProfiles() {
+    const raw = localStorage.getItem('puckVis_profiles');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) { /* fall through to defaults below */ }
+    }
+    const legacyLeg = parseFloat(localStorage.getItem('puckVis_legLength'));
+    const legacyBase = parseFloat(localStorage.getItem('puckVis_baseLength'));
+    const legacyTol = parseFloat(localStorage.getItem('puckVis_tolerance'));
+    return [{
+      name: 'Puck A',
+      legMm: legacyLeg || 40,
+      baseMm: legacyBase || 25,
+      tolerancePct: legacyTol || 20,
+    }];
+  }
+
+  let puckProfiles = loadProfiles();
+  function saveProfilesToStorage() {
+    localStorage.setItem('puckVis_profiles', JSON.stringify(puckProfiles));
+  }
+  saveProfilesToStorage(); // persist migrated defaults immediately
+
+  const stage = document.getElementById('stage');
+  const svg = document.getElementById('puckSvg');
+  const touchCountEl = document.getElementById('touchCount');
+  const puckStatusEl = document.getElementById('puckStatus');
+  const debugEl = document.getElementById('debug');
+  const hud = document.getElementById('hud');
+
+  const calibrateBtn = document.getElementById('calibrateBtn');
+  const calibrateOverlay = document.getElementById('calibrateOverlay');
+  const measuredMmInput = document.getElementById('measuredMm');
+  const calibrateSave = document.getElementById('calibrateSave');
+  const calibrateCancel = document.getElementById('calibrateCancel');
+  const calibrateStatus = document.getElementById('calibrateStatus');
+  const RULER_PX = 300;
+
+  const geometryBtn = document.getElementById('geometryBtn');
+  const geometryOverlay = document.getElementById('geometryOverlay');
+  const profileListView = document.getElementById('profileListView');
+  const profileEditView = document.getElementById('profileEditView');
+  const profileListEl = document.getElementById('profileList');
+  const profileAddNew = document.getElementById('profileAddNew');
+  const geometryCancel = document.getElementById('geometryCancel');
+  const geometryStatus = document.getElementById('geometryStatus');
+  const profileEditTitle = document.getElementById('profileEditTitle');
+  const profileNameInput = document.getElementById('profileName');
+  const legLengthInput = document.getElementById('legLength');
+  const baseLengthInput = document.getElementById('baseLength');
+  const toleranceInput = document.getElementById('tolerancePct');
+  const profileSave = document.getElementById('profileSave');
+  const profileEditCancel = document.getElementById('profileEditCancel');
+  const profileDelete = document.getElementById('profileDelete');
+  const profileEditStatus = document.getElementById('profileEditStatus');
+  let editingProfileIndex = null; // null = adding new
+
+  const crosshairToggle = document.getElementById('crosshairToggle');
+  const haloToggle = document.getElementById('haloToggle');
+  let crosshairsEnabled = true;
+  let haloEnabled = true;
+
+  function haloMinMaxPx() {
+    return {
+      min: (50 * pxPerMm).toFixed(2) + 'px',
+      max: (55 * pxPerMm).toFixed(2) + 'px'
+    };
+  }
+
+  function applyHaloSize(haloEl) {
+    const { min, max } = haloMinMaxPx();
+    haloEl.style.setProperty('--halo-min-px', min);
+    haloEl.style.setProperty('--halo-max-px', max);
+  }
+
+  const haloEls = new Map(); // puckId -> halo div
+  function ensureHaloEl(puckId) {
+    if (haloEls.has(puckId)) return haloEls.get(puckId);
+    const el = document.createElement('div');
+    el.className = 'halo';
+    document.body.appendChild(el);
+    haloEls.set(puckId, el);
+    return el;
+  }
+  function removeHaloEl(puckId) {
+    const el = haloEls.get(puckId);
+    if (el) { el.remove(); haloEls.delete(puckId); }
+  }
+
+  function setCrosshairsEnabled(enabled) {
+    crosshairsEnabled = enabled;
+    crosshairToggle.classList.toggle('on', enabled);
+    if (!enabled) {
+      for (const [id, visual] of touchVisuals) {
+        removeTouchVisual(visual);
+      }
+      touchVisuals.clear();
+    }
+  }
+
+  function setHaloEnabled(enabled) {
+    haloEnabled = enabled;
+    haloToggle.classList.toggle('on', enabled);
+    if (!enabled && haloEl) {
+      haloEl.style.display = 'none';
+    }
+  }
+
+  crosshairToggle.addEventListener('click', () => setCrosshairsEnabled(!crosshairsEnabled));
+  haloToggle.addEventListener('click', () => setHaloEnabled(!haloEnabled));
+
+  // ---------------------------------------------------------------
+  // Halo center-offset calibration
+  // Offset is stored in the puck's OWN coordinate frame (forward =
+  // toward apex, right = perpendicular to that) so it stays correct
+  // no matter how the puck is rotated on screen.
+  // ---------------------------------------------------------------
+  let haloOffsetForwardMm = parseFloat(localStorage.getItem('puckVis_haloOffsetForward')) || 0;
+  let haloOffsetRightMm = parseFloat(localStorage.getItem('puckVis_haloOffsetRight')) || 0;
+  const NUDGE_STEP_MM = 0.5;
+
+  let lastPuckFrame = null; // { centroidX, centroidY, angleRad } from the most recent detected puck
+
+  const centerHaloBtn = document.getElementById('centerHaloBtn');
+  const haloCenterPanel = document.getElementById('haloCenterPanel');
+  const haloOffsetReadout = document.getElementById('haloOffsetReadout');
+  const haloOffsetReset = document.getElementById('haloOffsetReset');
+  const haloCenterClose = document.getElementById('haloCenterClose');
+
+  function updateHaloOffsetReadout() {
+    haloOffsetReadout.textContent =
+      `fwd: ${haloOffsetForwardMm.toFixed(1)}mm  right: ${haloOffsetRightMm.toFixed(1)}mm`;
+  }
+  updateHaloOffsetReadout();
+
+  function computeHaloCenter(centroidX, centroidY, angleRad) {
+    const fwdX = Math.cos(angleRad), fwdY = Math.sin(angleRad);
+    const rightX = Math.cos(angleRad + Math.PI / 2), rightY = Math.sin(angleRad + Math.PI / 2);
+    const offFwdPx = haloOffsetForwardMm * pxPerMm;
+    const offRightPx = haloOffsetRightMm * pxPerMm;
+    return {
+      x: centroidX + offFwdPx * fwdX + offRightPx * rightX,
+      y: centroidY + offFwdPx * fwdY + offRightPx * rightY,
+    };
+  }
+
+  function repositionHaloNow() {
+    if (!haloEnabled || !haloEl || !lastPuckFrame) return;
+    const { centroidX, centroidY, angleRad } = lastPuckFrame;
+    const c = computeHaloCenter(centroidX, centroidY, angleRad);
+    haloEl.style.left = c.x + 'px';
+    haloEl.style.top = c.y + 'px';
+  }
+
+  function nudgeHalo(dir) {
+    if (dir === 'forward') haloOffsetForwardMm += NUDGE_STEP_MM;
+    if (dir === 'back') haloOffsetForwardMm -= NUDGE_STEP_MM;
+    if (dir === 'right') haloOffsetRightMm += NUDGE_STEP_MM;
+    if (dir === 'left') haloOffsetRightMm -= NUDGE_STEP_MM;
+    localStorage.setItem('puckVis_haloOffsetForward', haloOffsetForwardMm);
+    localStorage.setItem('puckVis_haloOffsetRight', haloOffsetRightMm);
+    updateHaloOffsetReadout();
+    repositionHaloNow();
+  }
+
+  document.querySelectorAll('#haloCenterPanel .nudgeGrid button[data-dir]').forEach(btn => {
+    btn.addEventListener('click', () => nudgeHalo(btn.getAttribute('data-dir')));
+  });
+
+  haloOffsetReset.addEventListener('click', () => {
+    haloOffsetForwardMm = 0;
+    haloOffsetRightMm = 0;
+    localStorage.setItem('puckVis_haloOffsetForward', 0);
+    localStorage.setItem('puckVis_haloOffsetRight', 0);
+    updateHaloOffsetReadout();
+    repositionHaloNow();
+  });
+
+  function openHaloCenterPanel() {
+    haloCenterPanel.classList.add('visible');
+  }
+  function closeHaloCenterPanel() {
+    haloCenterPanel.classList.remove('visible');
+  }
+  centerHaloBtn.addEventListener('click', () => {
+    haloCenterPanel.classList.contains('visible') ? closeHaloCenterPanel() : openHaloCenterPanel();
+  });
+  haloCenterClose.addEventListener('click', closeHaloCenterPanel);
+
+  // ---------------------------------------------------------------
+  // Rotation meter — a single bar whose height animates smoothly up
+  // and down as the puck's angle increases from 0° toward 360°,
+  // resetting low again as it wraps past 360° back to 0°.
+  // ---------------------------------------------------------------
+  const EQ_MIN_H = 3;
+  const EQ_MAX_H = 90;
+  const eqBarsContainer = document.getElementById('eqBars');
+  const eqLabel = document.getElementById('eqLabel');
+  const eqBarEl = document.createElement('div');
+  eqBarEl.className = 'eqBar';
+  eqBarEl.style.height = EQ_MIN_H + 'px';
+  eqBarsContainer.appendChild(eqBarEl);
+
+  function updateEQ(angleDegOrNull) {
+    const levelFrac = angleDegOrNull === null ? 0 : angleDegOrNull / 360;
+    const h = EQ_MIN_H + (EQ_MAX_H - EQ_MIN_H) * levelFrac;
+    eqBarEl.style.height = h.toFixed(1) + 'px';
+    // Green (low) -> yellow -> red (high), like a classic level meter
+    const hue = 140 - 140 * levelFrac;
+    eqBarEl.style.background = `hsl(${hue}, 90%, 55%)`;
+
+    eqLabel.innerHTML = angleDegOrNull === null
+      ? `<span class="deg">--°</span>`
+      : `<span class="deg">${angleDegOrNull.toFixed(1)}°</span>`;
+  }
+
+  updateEQ(null);
+
+  // ---------------------------------------------------------------
+  // Puck-count indicator — a simple row of lights, one per puck
+  // slot, that fill in as pucks become active (independent of the
+  // specific IDs assigned, since IDs can churn as pucks are lifted
+  // and replaced). Sized generously in case more than 2 are used.
+  // ---------------------------------------------------------------
+  const PUCK_DOT_COUNT = 4;
+  const puckDotsContainer = document.getElementById('puckDots');
+  const puckDotEls = [];
+  for (let i = 0; i < PUCK_DOT_COUNT; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'puckDot';
+    puckDotsContainer.appendChild(dot);
+    puckDotEls.push(dot);
+  }
+  function updatePuckDots(activeCount) {
+    for (let i = 0; i < PUCK_DOT_COUNT; i++) {
+      puckDotEls[i].classList.toggle('lit', i < activeCount);
+    }
+  }
+  updatePuckDots(0);
+
+  function isUITouch(target) {
+    if (target && target.closest && target.closest('.ui')) return true;
+    return hud.contains(target) || calibrateOverlay.contains(target) ||
+      geometryOverlay.contains(target) || haloCenterPanel.contains(target);
+  }
+
+  calibrateBtn.addEventListener('click', openCalibrate);
+  function openCalibrate() {
+    calibrateStatus.textContent = '';
+    measuredMmInput.value = '';
+    calibrateOverlay.classList.add('visible');
+  }
+  calibrateCancel.addEventListener('click', () => calibrateOverlay.classList.remove('visible'));
+  calibrateSave.addEventListener('click', () => {
+    const mm = parseFloat(measuredMmInput.value);
+    if (!mm || mm <= 0) {
+      calibrateStatus.textContent = 'Enter the measured length in mm first.';
+      return;
+    }
+    pxPerMm = RULER_PX / mm;
+    localStorage.setItem('puckVis_pxPerMm', pxPerMm);
+    calibrateStatus.textContent = `Saved: ${pxPerMm.toFixed(3)} px/mm`;
+    setTimeout(() => calibrateOverlay.classList.remove('visible'), 700);
+  });
+  document.getElementById('rulerLine').style.width = RULER_PX + 'px';
+  document.querySelector('.rulerCaps').style.width = RULER_PX + 'px';
+
+  function renderProfileList() {
+    profileListEl.innerHTML = '';
+    if (puckProfiles.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'profileEmpty';
+      empty.textContent = 'No profiles yet — add one to start detecting pucks.';
+      profileListEl.appendChild(empty);
+      return;
+    }
+    puckProfiles.forEach((profile, idx) => {
+      const row = document.createElement('div');
+      row.className = 'profileRow';
+
+      const info = document.createElement('div');
+      info.className = 'profileInfo';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'profileName';
+      nameEl.textContent = profile.name;
+      const dimsEl = document.createElement('div');
+      dimsEl.className = 'profileDims';
+      dimsEl.textContent = `legs ${profile.legMm}mm · base ${profile.baseMm}mm · tol ±${profile.tolerancePct}%`;
+      info.appendChild(nameEl);
+      info.appendChild(dimsEl);
+
+      const chevron = document.createElement('div');
+      chevron.className = 'profileChevron';
+      chevron.textContent = '›';
+
+      row.appendChild(info);
+      row.appendChild(chevron);
+      row.addEventListener('click', () => openProfileEdit(idx));
+      profileListEl.appendChild(row);
+    });
+  }
+
+  function showProfileListView() {
+    profileListView.style.display = '';
+    profileEditView.style.display = 'none';
+    geometryStatus.textContent = '';
+    renderProfileList();
+  }
+
+  function openProfileEdit(idx) {
+    editingProfileIndex = idx;
+    const profile = idx === null ? null : puckProfiles[idx];
+    profileEditTitle.textContent = profile ? 'Edit profile' : 'Add profile';
+    profileNameInput.value = profile ? profile.name : '';
+    legLengthInput.value = profile ? profile.legMm : '';
+    baseLengthInput.value = profile ? profile.baseMm : '';
+    toleranceInput.value = profile ? profile.tolerancePct : 20;
+    profileDelete.style.display = profile ? '' : 'none';
+    profileEditStatus.textContent = '';
+    profileListView.style.display = 'none';
+    profileEditView.style.display = '';
+  }
+
+  geometryBtn.addEventListener('click', openGeometry);
+  function openGeometry() {
+    showProfileListView();
+    geometryOverlay.classList.add('visible');
+  }
+  geometryCancel.addEventListener('click', () => geometryOverlay.classList.remove('visible'));
+
+  profileAddNew.addEventListener('click', () => openProfileEdit(null));
+  profileEditCancel.addEventListener('click', showProfileListView);
+
+  profileSave.addEventListener('click', () => {
+    const name = profileNameInput.value.trim();
+    const leg = parseFloat(legLengthInput.value);
+    const base = parseFloat(baseLengthInput.value);
+    const tol = parseFloat(toleranceInput.value);
+    if (!name) {
+      profileEditStatus.textContent = 'Enter a name for this profile.';
+      return;
+    }
+    if (!leg || !base || isNaN(tol) || leg <= 0 || base <= 0 || tol < 0) {
+      profileEditStatus.textContent = 'Enter valid positive numbers for leg/base/tolerance.';
+      return;
+    }
+    const newProfile = { name, legMm: leg, baseMm: base, tolerancePct: tol };
+    if (editingProfileIndex === null) {
+      puckProfiles.push(newProfile);
+    } else {
+      puckProfiles[editingProfileIndex] = newProfile;
+    }
+    saveProfilesToStorage();
+    showProfileListView();
+  });
+
+  profileDelete.addEventListener('click', () => {
+    if (editingProfileIndex === null) return;
+    puckProfiles.splice(editingProfileIndex, 1);
+    saveProfilesToStorage();
+    showProfileListView();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+    if (e.key === 'c' || e.key === 'C') {
+      calibrateOverlay.classList.contains('visible')
+        ? calibrateOverlay.classList.remove('visible')
+        : openCalibrate();
+    }
+    if (e.key === 'p' || e.key === 'P') {
+      geometryOverlay.classList.contains('visible')
+        ? geometryOverlay.classList.remove('visible')
+        : openGeometry();
+    }
+    if (e.key === 'h' || e.key === 'H') {
+      setCrosshairsEnabled(!crosshairsEnabled);
+    }
+    if (e.key === 'x' || e.key === 'X') {
+      haloCenterPanel.classList.contains('visible') ? closeHaloCenterPanel() : openHaloCenterPanel();
+    }
+  });
+
+  const touchVisuals = new Map();
+
+  const touchColors = ['#39ff88', '#39c8ff', '#ffd339', '#ff5c8a', '#c39fff', '#ff9d39'];
+  function colorForTouch(identifier) {
+    return touchColors[Math.abs(identifier) % touchColors.length];
+  }
+
+  function createTouchVisual(identifier) {
+    const color = colorForTouch(identifier);
+    const h = document.createElement('div'); h.className = 'line line-h';
+    const v = document.createElement('div'); v.className = 'line line-v';
+    const dot = document.createElement('div'); dot.className = 'dot';
+    const label = document.createElement('div'); label.className = 'label';
+
+    h.style.background = color;
+    h.style.boxShadow = `0 0 8px ${color}, 0 0 16px ${color}aa`;
+    v.style.background = color;
+    v.style.boxShadow = `0 0 8px ${color}, 0 0 16px ${color}aa`;
+    dot.style.border = `2px solid ${color}`;
+    dot.style.background = color + '33';
+    label.style.color = color;
+
+    stage.appendChild(h); stage.appendChild(v); stage.appendChild(dot); stage.appendChild(label);
+    return { h, v, dot, label };
+  }
+
+  function updateTouchVisual(visual, x, y, identifier) {
+    visual.h.style.top = y + 'px';
+    visual.v.style.left = x + 'px';
+    visual.dot.style.left = x + 'px';
+    visual.dot.style.top = y + 'px';
+    visual.label.style.left = (x + 16) + 'px';
+    visual.label.style.top = (y - 20) + 'px';
+    visual.label.textContent = `#${identifier}  x:${Math.round(x)}  y:${Math.round(y)}`;
+  }
+
+  function removeTouchVisual(visual) {
+    visual.h.remove(); visual.v.remove(); visual.dot.remove(); visual.label.remove();
+  }
+
+  const puckElementsById = new Map(); // puckId -> {legLine1, legLine2, baseLine, arrowLine, apexDot, centroidDot, label}
+
+  function ensurePuckElements(puckId) {
+    if (puckElementsById.has(puckId)) return puckElementsById.get(puckId);
+    const ns = 'http://www.w3.org/2000/svg';
+    const legLine1 = document.createElementNS(ns, 'line');
+    const legLine2 = document.createElementNS(ns, 'line');
+    const baseLine = document.createElementNS(ns, 'line');
+    const arrowLine = document.createElementNS(ns, 'line');
+    const apexDot = document.createElementNS(ns, 'circle');
+    const centroidDot = document.createElementNS(ns, 'circle');
+
+    legLine1.setAttribute('stroke', '#39ff88');
+    legLine2.setAttribute('stroke', '#39ff88');
+    legLine1.setAttribute('stroke-width', '2');
+    legLine2.setAttribute('stroke-width', '2');
+
+    baseLine.setAttribute('stroke', '#39c8ff');
+    baseLine.setAttribute('stroke-width', '2');
+
+    arrowLine.setAttribute('stroke', '#ff5c8a');
+    arrowLine.setAttribute('stroke-width', '3');
+
+    apexDot.setAttribute('r', '7');
+    apexDot.setAttribute('fill', '#ff5c8a');
+
+    centroidDot.setAttribute('r', '6');
+    centroidDot.setAttribute('fill', '#39ff88');
+    centroidDot.setAttribute('fill-opacity', '0.9');
+
+    svg.appendChild(legLine1);
+    svg.appendChild(legLine2);
+    svg.appendChild(baseLine);
+    svg.appendChild(arrowLine);
+    svg.appendChild(apexDot);
+    svg.appendChild(centroidDot);
+
+    const label = document.createElement('div');
+    label.className = 'puckLabel';
+    document.body.appendChild(label);
+
+    const els = { legLine1, legLine2, baseLine, arrowLine, apexDot, centroidDot, label };
+    puckElementsById.set(puckId, els);
+    return els;
+  }
+
+  function removePuckElements(puckId) {
+    const els = puckElementsById.get(puckId);
+    if (!els) return;
+    for (const key of ['legLine1', 'legLine2', 'baseLine', 'arrowLine', 'apexDot', 'centroidDot']) {
+      els[key].remove();
+    }
+    els.label.remove();
+    puckElementsById.delete(puckId);
+  }
+
+  function dist(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  function combinations3(arr) {
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        for (let k = j + 1; k < arr.length; k++) {
+          out.push([arr[i], arr[j], arr[k]]);
+        }
+      }
+    }
+    return out;
+  }
+
+  // Finds the single best-matching triple within a pool of touches.
+  // Used both standalone (for debug info) and repeatedly to peel off
+  // multiple non-overlapping pucks from a larger touch set.
+  // Checks one candidate triple against a single profile. Returns null if
+  // it doesn't fit within that profile's tolerance, otherwise a match
+  // descriptor including a normalized score for cross-profile comparison.
+  function matchTripleAgainstProfile(A, B, C, profile) {
+    const expectedSorted = [profile.legMm, profile.legMm, profile.baseMm].sort((a, b) => a - b);
+    const tol = profile.tolerancePct / 100;
+
+    const dAB = dist(A, B) / pxPerMm;
+    const dBC = dist(B, C) / pxPerMm;
+    const dCA = dist(C, A) / pxPerMm;
+
+    const sides = [
+      { len: dAB, pair: [A, B], other: C },
+      { len: dBC, pair: [B, C], other: A },
+      { len: dCA, pair: [C, A], other: B },
+    ];
+    const sortedLens = sides.map(s => s.len).slice().sort((a, b) => a - b);
+
+    let matches = true;
+    let normDeviation = 0; // normalized so profiles of different scale compare fairly
+    for (let i = 0; i < 3; i++) {
+      const expected = expectedSorted[i];
+      const actual = sortedLens[i];
+      const allowed = expected * tol;
+      const diff = Math.abs(actual - expected);
+      if (diff > allowed) matches = false;
+      normDeviation += diff / expected;
+    }
+
+    if (!matches) return null;
+
+    let baseSide = sides[0];
+    let bestBaseDiff = Math.abs(sides[0].len - profile.baseMm);
+    for (const s of sides) {
+      const d = Math.abs(s.len - profile.baseMm);
+      if (d < bestBaseDiff) { bestBaseDiff = d; baseSide = s; }
+    }
+
+    return {
+      points: [A, B, C],
+      baseA: baseSide.pair[0],
+      baseB: baseSide.pair[1],
+      apex: baseSide.other,
+      score: normDeviation,
+      profileName: profile.name,
+      profile,
+    };
+  }
+
+  // Finds the single best-matching triple within a pool of touches,
+  // checked against every registered profile. "Best" = lowest normalized
+  // deviation among all (profile, combo) pairs that pass tolerance.
+  function findBestPuckMatchIn(touches) {
+    if (touches.length < 3) return { match: null, closest: null };
+
+    let best = null;
+    let closest = null; // best (profile, combo) by normalized deviation, pass or fail — for debugging
+
+    for (const combo of combinations3(touches)) {
+      const [A, B, C] = combo;
+
+      for (const profile of puckProfiles) {
+        const result = matchTripleAgainstProfile(A, B, C, profile);
+        if (result && (!best || result.score < best.score)) best = result;
+      }
+
+      // Track closest-fitting profile for this combo, even if it failed
+      // tolerance, so the debug readout can suggest what to adjust.
+      for (const profile of puckProfiles) {
+        const expectedSorted = [profile.legMm, profile.legMm, profile.baseMm].sort((a, b) => a - b);
+        const dAB = dist(A, B) / pxPerMm, dBC = dist(B, C) / pxPerMm, dCA = dist(C, A) / pxPerMm;
+        const sortedLens = [dAB, dBC, dCA].sort((a, b) => a - b);
+        let normDeviation = 0;
+        for (let i = 0; i < 3; i++) normDeviation += Math.abs(sortedLens[i] - expectedSorted[i]) / expectedSorted[i];
+        if (!closest || normDeviation < closest.normDeviation) {
+          closest = { sortedLens, normDeviation, profileName: profile.name };
+        }
+      }
+    }
+
+    return { match: best, closest };
+  }
+
+  // Repeatedly extracts the best matching triple, removes its 3 touches
+  // from the pool, and repeats — so multiple pucks (of the same or
+  // different profiles) on screen at once are each found separately.
+  function findAllPuckMatches(touches) {
+    const matches = [];
+    let remaining = touches.slice();
+    let closestOverall = null;
+
+    while (remaining.length >= 3) {
+      const { match, closest } = findBestPuckMatchIn(remaining);
+      if (!closestOverall && closest) closestOverall = closest;
+      if (!match) break;
+      matches.push(match);
+      const usedIds = new Set(match.points.map(p => p.id));
+      remaining = remaining.filter(t => !usedIds.has(t.id));
+    }
+
+    return { matches, closest: closestOverall };
+  }
+
+
+  // Persistent puck tracking state: each entry keeps the puck's last
+  // known centroid/angle/profile so the SAME physical puck keeps the
+  // SAME id as it moves, rather than getting a new id every frame.
+  const trackedPucks = new Map(); // id -> { centroidX, centroidY, angleRad, profileName }
+  let nextPuckId = 1;
+
+  // How far (in mm) a puck's centroid can move between frames and still
+  // be considered "the same puck" rather than a new one. Sized to that
+  // profile's own dimensions, generous enough for normal movement but
+  // well under the gap you'd expect between two distinct pucks.
+  function associationThresholdMm(profile) {
+    return Math.max(profile.legMm, profile.baseMm) * 1.2;
+  }
+
+  function updateFromTouches(touchList) {
+    const touches = [];
+    for (const t of touchList) {
+      if (isUITouch(t.target)) continue;
+      touches.push({ id: t.identifier, x: t.clientX, y: t.clientY });
+    }
+
+    touchCountEl.textContent = touches.length;
+
+    const result = findAllPuckMatches(touches);
+    const rawMatches = result.matches;
+
+    // Compute centroid/angle for every match found this frame
+    const detections = rawMatches.map(match => {
+      const { baseA, baseB, apex, profileName, profile } = match;
+      const centroidX = (match.points[0].x + match.points[1].x + match.points[2].x) / 3;
+      const centroidY = (match.points[0].y + match.points[1].y + match.points[2].y) / 3;
+      const baseMidX = (baseA.x + baseB.x) / 2;
+      const baseMidY = (baseA.y + baseB.y) / 2;
+      const angleRad = Math.atan2(apex.y - baseMidY, apex.x - baseMidX);
+      return { match, baseA, baseB, apex, centroidX, centroidY, angleRad, profileName, profile };
+    });
+
+    // --- Associate detections with existing tracked pucks by nearest
+    // centroid, but only within the same profile (shape) — a "Puck A"
+    // detection should never claim/steal a "Puck B" puck's tracked id.
+    const claimedDetectionIdx = new Set();
+    const claimedTrackIds = new Set();
+    const assignments = []; // { id, detection }
+
+    for (const [id, prev] of trackedPucks) {
+      let bestIdx = -1;
+      let bestDist = Infinity;
+      detections.forEach((d, idx) => {
+        if (claimedDetectionIdx.has(idx)) return;
+        if (d.profileName !== prev.profileName) return;
+        const dpx = Math.hypot(d.centroidX - prev.centroidX, d.centroidY - prev.centroidY);
+        if (dpx < bestDist) { bestDist = dpx; bestIdx = idx; }
+      });
+      if (bestIdx !== -1) {
+        const thresholdPx = associationThresholdMm(detections[bestIdx].profile) * pxPerMm;
+        if (bestDist <= thresholdPx) {
+          claimedDetectionIdx.add(bestIdx);
+          claimedTrackIds.add(id);
+          assignments.push({ id, detection: detections[bestIdx] });
+        }
+      }
+    }
+
+    // Any detection not claimed by an existing tracked puck becomes a new one
+    detections.forEach((d, idx) => {
+      if (claimedDetectionIdx.has(idx)) return;
+      const id = nextPuckId++;
+      assignments.push({ id, detection: d });
+    });
+
+    // Remove tracked pucks not seen this frame
+    for (const id of Array.from(trackedPucks.keys())) {
+      if (!claimedTrackIds.has(id) && !assignments.some(a => a.id === id)) {
+        trackedPucks.delete(id);
+        removePuckElements(id);
+        removeHaloEl(id);
+      }
+    }
+
+    // --- Render each currently active puck ---
+    const activeIds = new Set();
+    for (const { id, detection } of assignments) {
+      activeIds.add(id);
+      trackedPucks.set(id, {
+        centroidX: detection.centroidX,
+        centroidY: detection.centroidY,
+        angleRad: detection.angleRad,
+        profileName: detection.profileName,
+      });
+
+      const { baseA, baseB, apex, centroidX, centroidY, angleRad, profileName } = detection;
+      const angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
+
+      const els = ensurePuckElements(id);
+      for (const key of ['legLine1', 'legLine2', 'baseLine', 'arrowLine', 'apexDot', 'centroidDot']) {
+        els[key].style.display = '';
+      }
+      els.label.style.display = '';
+
+      els.baseLine.setAttribute('x1', baseA.x); els.baseLine.setAttribute('y1', baseA.y);
+      els.baseLine.setAttribute('x2', baseB.x); els.baseLine.setAttribute('y2', baseB.y);
+
+      els.legLine1.setAttribute('x1', baseA.x); els.legLine1.setAttribute('y1', baseA.y);
+      els.legLine1.setAttribute('x2', apex.x);  els.legLine1.setAttribute('y2', apex.y);
+
+      els.legLine2.setAttribute('x1', baseB.x); els.legLine2.setAttribute('y1', baseB.y);
+      els.legLine2.setAttribute('x2', apex.x);  els.legLine2.setAttribute('y2', apex.y);
+
+      els.apexDot.setAttribute('cx', apex.x); els.apexDot.setAttribute('cy', apex.y);
+      els.centroidDot.setAttribute('cx', centroidX); els.centroidDot.setAttribute('cy', centroidY);
+
+      const arrowLenPx = 20 * pxPerMm;
+      const dirX = Math.cos(angleRad);
+      const dirY = Math.sin(angleRad);
+      const gapPx = 10;
+      els.arrowLine.setAttribute('x1', apex.x + dirX * gapPx);
+      els.arrowLine.setAttribute('y1', apex.y + dirY * gapPx);
+      els.arrowLine.setAttribute('x2', apex.x + dirX * (gapPx + arrowLenPx));
+      els.arrowLine.setAttribute('y2', apex.y + dirY * (gapPx + arrowLenPx));
+      els.arrowLine.setAttribute('marker-end', 'url(#arrowHead)');
+
+      els.label.style.left = (centroidX + 16) + 'px';
+      els.label.style.top = (centroidY - 46) + 'px';
+      els.label.textContent =
+        `${profileName} #${id}  x:${Math.round(centroidX)} y:${Math.round(centroidY)}  ${angleDeg.toFixed(1)}°`;
+
+      if (haloEnabled) {
+        const h = ensureHaloEl(id);
+        applyHaloSize(h);
+        h.style.display = '';
+        const c = computeHaloCenter(centroidX, centroidY, angleRad);
+        h.style.left = c.x + 'px';
+        h.style.top = c.y + 'px';
+      } else {
+        removeHaloEl(id);
+      }
+    }
+
+    // --- HUD status + rotation meter (driven by the lowest-id active puck) ---
+    if (activeIds.size > 0) {
+      const sortedIds = Array.from(activeIds).sort((a, b) => a - b);
+      const summary = sortedIds.map(id => {
+        const p = trackedPucks.get(id);
+        const deg = ((p.angleRad * 180 / Math.PI) + 360) % 360;
+        return `${p.profileName} #${id}: ${deg.toFixed(0)}°`;
+      }).join('  ');
+      puckStatusEl.textContent = `${activeIds.size} detected (${summary})`;
+      puckStatusEl.className = 'status detected';
+      debugEl.textContent = '';
+      updatePuckDots(activeIds.size);
+
+      const firstId = sortedIds[0];
+      const firstPuck = trackedPucks.get(firstId);
+      const firstAngleDeg = ((firstPuck.angleRad * 180 / Math.PI) + 360) % 360;
+      lastPuckFrame = { centroidX: firstPuck.centroidX, centroidY: firstPuck.centroidY, angleRad: firstPuck.angleRad };
+      const hc = computeHaloCenter(firstPuck.centroidX, firstPuck.centroidY, firstPuck.angleRad);
+      window.primaryPuck = { id: firstId, x: hc.x, y: hc.y, angleDeg: firstAngleDeg };
+      updateEQ(firstAngleDeg);
+    } else {
+      window.primaryPuck = null;
+      puckStatusEl.textContent = 'not detected';
+      puckStatusEl.className = 'status none';
+      updateEQ(null);
+      updatePuckDots(0);
+
+      if (result.closest) {
+        const [s1, s2, s3] = result.closest.sortedLens.map(v => v.toFixed(1));
+        debugEl.textContent =
+          `Closest match: "${result.closest.profileName}" — measured ${s1}, ${s2}, ${s3} mm`;
+      } else {
+        debugEl.textContent = touches.length === 0
+          ? 'No touches detected at all — check that touches are reaching this page.'
+          : puckProfiles.length === 0
+            ? 'No puck profiles defined — add one via Puck geometry (p).'
+            : `Only ${touches.length} touch(es) active — need 3 for puck detection.`;
+      }
+    }
+
+    if (crosshairsEnabled) {
+      const seenTouches = new Set();
+      for (const t of touches) {
+        seenTouches.add(t.id);
+        let visual = touchVisuals.get(t.id);
+        if (!visual) {
+          visual = createTouchVisual(t.id);
+          touchVisuals.set(t.id, visual);
+        }
+        updateTouchVisual(visual, t.x, t.y, t.id);
+      }
+      for (const [id, visual] of touchVisuals) {
+        if (!seenTouches.has(id)) {
+          removeTouchVisual(visual);
+          touchVisuals.delete(id);
+        }
+      }
+    }
+  }
+
+  function handleTouchMove(e) {
+    // Only block default (scroll/zoom) if the touch(es) that triggered THIS
+    // event are on the surface — not just because some other touch (e.g. the
+    // puck, already down) happens to also be active. Otherwise iOS won't
+    // fire click on a button tapped while the puck is sitting on the glass.
+    let hasSurfaceTouch = false;
+    for (const t of e.changedTouches) if (!isUITouch(t.target)) hasSurfaceTouch = true;
+    if (hasSurfaceTouch) e.preventDefault();
+    updateFromTouches(e.touches);
+  }
+
+  function handleTouchEnd(e) {
+    let hasSurfaceTouch = false;
+    for (const t of e.changedTouches) if (!isUITouch(t.target)) hasSurfaceTouch = true;
+    if (hasSurfaceTouch) e.preventDefault();
+    updateFromTouches(e.touches);
+  }
+
+  document.addEventListener('touchstart', handleTouchMove, { passive: false });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: false });
+  document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+</script>
+<script>
+// ---------------------------------------------------------------------------
+// Body artwork, drawn from scratch. Figure stands in a 460 x 1000 box, centre x = 230.
+// Each layer returns an SVG string; symmetric parts are drawn for the figure's
+// right side (viewer's left) and mirrored.
+// ---------------------------------------------------------------------------
+const BodyArt = (function () {
+  const W = 460, H = 1000;
+  const SKIN = '#f1b48c', SKIN_EDGE = '#c98a63', SKIN_IN = '#f5c6a6';
+  const mirror = inner => `<g>${inner}</g><g transform="translate(${W},0) scale(-1,1)">${inner}</g>`;
+
+  // Smooth closed/open path through points (Catmull-Rom → cubic Bézier)
+  function spline(pts, closed) {
+    const p = closed ? [pts[pts.length - 1], ...pts, pts[0], pts[1]] : [pts[0], ...pts, pts[pts.length - 1]];
+    let d = `M ${p[1][0]} ${p[1][1]}`;
+    for (let i = 1; i < p.length - 2; i++) {
+      const [x0, y0] = p[i - 1], [x1, y1] = p[i], [x2, y2] = p[i + 1], [x3, y3] = p[i + 2];
+      d += ` C ${(x1 + (x2 - x0) / 6).toFixed(1)} ${(y1 + (y2 - y0) / 6).toFixed(1)}, ${(x2 - (x3 - x1) / 6).toFixed(1)} ${(y2 - (y3 - y1) / 6).toFixed(1)}, ${x2} ${y2}`;
+    }
+    return d + (closed ? ' Z' : '');
+  }
+  const poly = pts => 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
+
+  // ---------- Silhouette ----------
+  const torsoL = [[230, 158], [190, 164], [152, 174], [130, 190], [124, 228], [134, 290], [146, 360], [150, 400], [144, 440], [146, 482], [160, 522], [196, 542], [230, 548]];
+  const torso = spline([...torsoL, ...torsoL.slice(1, -1).reverse().map(([x, y]) => [W - x, y])], true);
+  const limbs = [ // [x1,y1,x2,y2,width]
+    [140, 200, 98, 378, 40], [98, 378, 68, 540, 32],   // arm
+    [184, 500, 174, 735, 76], [174, 735, 170, 932, 48], // leg
+  ];
+  function silhouetteParts(fill, extra) {
+    const limb = limbs.map(([x1, y1, x2, y2, w]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${fill}" stroke-width="${w + extra}" stroke-linecap="round"/>`).join('');
+    const side = limb +
+      `<ellipse cx="58" cy="586" rx="${19 + extra / 2}" ry="${40 + extra / 2}" transform="rotate(12 58 586)" fill="${fill}"/>` +
+      `<ellipse cx="164" cy="960" rx="${33 + extra / 2}" ry="${16 + extra / 2}" fill="${fill}"/>`;
+    return mirror(side) +
+      `<path d="${torso}" fill="${fill}" stroke="${fill}" stroke-width="${extra}" stroke-linejoin="round"/>` +
+      `<rect x="${208 - extra / 2}" y="112" width="${44 + extra}" height="60" rx="14" fill="${fill}"/>` +
+      `<ellipse cx="230" cy="78" rx="${44 + extra / 2}" ry="${54 + extra / 2}" fill="${fill}"/>`;
+  }
+  const silhouette = (fill, edge) => silhouetteParts(edge, 6) + silhouetteParts(fill, 0);
+
+  // ---------- Seeded branching (vessels, nerves) ----------
+  function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+  function branches(path, rand, opts) {
+    // path: polyline points; adds short side twigs, some forked
+    const { every = 26, len = [10, 26], width = 1.2, color, depth = 1 } = opts;
+    let out = '';
+    for (let i = 0; i < path.length - 1; i++) {
+      const [x1, y1] = path[i], [x2, y2] = path[i + 1];
+      const segLen = Math.hypot(x2 - x1, y2 - y1), n = Math.floor(segLen / every);
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      for (let k = 1; k <= n; k++) {
+        const t = (k - rand() * 0.6) / (n + 1), x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+        const side = rand() < 0.5 ? -1 : 1, a = ang + side * (0.5 + rand() * 0.5), L = len[0] + rand() * (len[1] - len[0]);
+        const ex = x + Math.cos(a) * L, ey = y + Math.sin(a) * L;
+        const mx = x + Math.cos(a - side * 0.25) * L * 0.55, my = y + Math.sin(a - side * 0.25) * L * 0.55;
+        out += `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${color}" stroke-width="${width}" fill="none" stroke-linecap="round"/>`;
+        if (depth > 1 && rand() < 0.6) {
+          const a2 = a + (rand() - 0.5) * 1.2, L2 = L * 0.55;
+          out += `<line x1="${ex.toFixed(1)}" y1="${ey.toFixed(1)}" x2="${(ex + Math.cos(a2) * L2).toFixed(1)}" y2="${(ey + Math.sin(a2) * L2).toFixed(1)}" stroke="${color}" stroke-width="${(width * 0.7).toFixed(2)}" stroke-linecap="round"/>`;
+        }
+      }
+    }
+    return out;
+  }
+  const stroke = (pts, color, w, smooth = true) => `<path d="${smooth ? spline(pts, false) : poly(pts)}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const fingers = (color, w, wx, wy) => [[-24, 52], [-12, 66], [0, 70], [12, 64], [24, 46]]
+    .map(([dx, dy]) => `<line x1="${wx}" y1="${wy}" x2="${wx + dx * 0.9 - 6}" y2="${wy + dy}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`).join('');
+  const toes = (color, w) => [[-26, 12], [-14, 18], [-2, 20], [10, 18], [20, 12]]
+    .map(([dx, dy]) => `<line x1="166" y1="940" x2="${166 + dx}" y2="${952 + dy}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`).join('');
+
+  // ---------- Layers ----------
+  function outside() {
+    return silhouette(SKIN, SKIN_EDGE) +
+      // soft light down the body and a few surface cues
+      `<ellipse cx="208" cy="300" rx="40" ry="120" fill="#ffffff" opacity="0.10"/>` +
+      `<ellipse cx="214" cy="62" rx="18" ry="26" fill="#ffffff" opacity="0.12"/>` +
+      `<circle cx="230" cy="452" r="3.2" fill="${SKIN_EDGE}" opacity="0.8"/>` +
+      mirror(`<path d="M 226 186 Q 196 182 162 190" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.45" stroke-linecap="round"/>` +
+        `<path d="M 160 728 Q 174 740 188 728" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.45" stroke-linecap="round"/>`) +
+      `<path d="M 218 520 Q 230 532 242 520" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.4"/>`;
+  }
+
+  function brain(fill, line) {
+    let s = `<ellipse cx="230" cy="70" rx="36" ry="31" fill="${fill}"/>`;
+    s += `<line x1="230" y1="42" x2="230" y2="98" stroke="${line}" stroke-width="2"/>`;
+    const sq = (y, x0, x1) => `<path d="M ${x0} ${y} q 5 -7 10 0 t 10 0 t 10 0" stroke="${line}" stroke-width="1.6" fill="none"/>`;
+    s += sq(58, 200, 0) + sq(74, 198, 0) + sq(90, 204, 0) + sq(58, 232, 0) + sq(74, 232, 0) + sq(90, 230, 0);
+    return s;
+  }
+
+  function organs() {
+    let s = silhouette(SKIN_IN, SKIN_EDGE);
+    s += brain('#f2a3ad', '#d97b88');
+    // trachea + oesophagus
+    s += `<rect x="223" y="128" width="14" height="80" rx="6" fill="#f3d1b3" stroke="#d9a983" stroke-width="1.5"/>`;
+    for (let y = 136; y < 204; y += 8) s += `<line x1="224" y1="${y}" x2="236" y2="${y}" stroke="#d9a983" stroke-width="1.2"/>`;
+    // lungs
+    s += `<path d="${spline([[220, 214], [190, 210], [164, 228], [154, 280], [158, 330], [190, 334], [218, 318], [222, 260]], true)}" fill="#d84a5d" stroke="#a8303f" stroke-width="2"/>`;
+    s += `<path d="${spline([[240, 214], [270, 210], [296, 228], [306, 280], [302, 330], [276, 336], [262, 318], [250, 300], [238, 262]], true)}" fill="#d84a5d" stroke="#a8303f" stroke-width="2"/>`;
+    s += `<path d="M 186 240 Q 196 270 188 300 M 274 240 Q 266 268 276 300" stroke="#a8303f" stroke-width="1.5" fill="none"/>`;
+    // heart
+    s += `<path d="${spline([[236, 262], [256, 258], [272, 276], [266, 304], [244, 324], [228, 306], [224, 282]], true)}" fill="#c3303c" stroke="#8e1f29" stroke-width="2"/>`;
+    // liver (figure's right = viewer's left), stomach, pancreas
+    s += `<path d="${spline([[156, 340], [206, 334], [252, 342], [246, 360], [214, 376], [174, 392], [156, 376]], true)}" fill="#8f3b30" stroke="#6b2a22" stroke-width="2"/>`;
+    s += `<path d="${spline([[258, 344], [292, 346], [304, 372], [292, 404], [262, 408], [246, 392], [264, 384], [276, 368], [262, 360]], true)}" fill="#ef8f86" stroke="#c96b62" stroke-width="2"/>`;
+    s += `<path d="M 214 398 Q 244 388 266 400" stroke="#f0c062" stroke-width="9" fill="none" stroke-linecap="round"/>`;
+    // kidneys
+    s += `<path d="${spline([[186, 402], [200, 398], [206, 414], [200, 432], [186, 430], [180, 416]], true)}" fill="#b3473e"/>`;
+    s += `<path d="${spline([[274, 402], [260, 398], [254, 414], [260, 432], [274, 430], [280, 416]], true)}" fill="#b3473e"/>`;
+    // large intestine frame, small intestine coils
+    s += stroke([[188, 488], [176, 452], [182, 420], [230, 414], [280, 420], [286, 452], [276, 486], [252, 500]], '#c9786a', 22) +
+      stroke([[188, 488], [176, 452], [182, 420], [230, 414], [280, 420], [286, 452], [276, 486], [252, 500]], '#e8a594', 17);
+    let coil = [];
+    for (let r = 0; r < 5; r++) {
+      const y = 434 + r * 12;
+      coil.push([200, y], [262, y + 6]);
+      [coil[coil.length - 2], coil[coil.length - 1]] = r % 2 ? [[262, y], [200, y + 6]] : [[200, y], [262, y + 6]];
+    }
+    s += stroke(coil, '#d98c84', 10) + stroke(coil, '#f4b7ad', 7);
+    // bladder
+    s += `<ellipse cx="230" cy="516" rx="17" ry="13" fill="#f2c56e" stroke="#c99a41" stroke-width="1.5"/>`;
+    return s;
+  }
+
+  function vesselSide(color, off, rand) {
+    // main runs for one side (viewer's left), offset sideways for veins
+    const arm = [[232, 258], [190, 212], [150, 206], [126 + off, 290], [100 + off, 378], [84 + off, 460], [70 + off, 538]];
+    const leg = [[234, 470], [212, 498], [190 + off, 540], [182 + off, 640], [176 + off, 735], [172 + off, 830], [168 + off, 928], [160, 950]];
+    const neck = [[234, 258], [228 + off * 0.5, 190], [224 + off * 0.5, 130], [214, 96], [204, 66]];
+    let s = stroke(arm, color, 4.2) + stroke(leg, color, 5) + stroke(neck, color, 3.6);
+    s += stroke([[214, 96], [228, 52]], color, 2) + stroke([[218, 110], [196, 108]], color, 2);
+    s += branches(arm.slice(2), rand, { color, width: 1.6, every: 22, len: [10, 24], depth: 2 });
+    s += branches(leg.slice(1), rand, { color, width: 1.8, every: 24, len: [12, 30], depth: 2 });
+    s += branches([[234, 300], [232, 460]], rand, { color, width: 1.6, every: 20, len: [16, 40], depth: 2 });
+    s += fingers(color, 1.4, 70 + off, 545);
+    s += toes(color, 1.4);
+    return s;
+  }
+  function circulatory() {
+    let s = silhouette(SKIN_IN, SKIN_EDGE);
+    const ra = rng(11), rv = rng(29);
+    s += mirror(vesselSide('#3d6fd1', 7, rv));    // veins (blue) sit slightly outside
+    s += mirror(vesselSide('#d8343b', 0, ra));    // arteries (red)
+    s += stroke([[236, 300], [236, 474]], '#d8343b', 7) + stroke([[224, 300], [224, 474]], '#3d6fd1', 7); // aorta + vena cava
+    s += `<path d="${spline([[232, 262], [256, 256], [272, 274], [266, 304], [244, 326], [226, 306], [222, 280]], true)}" fill="#c3303c" stroke="#8e1f29" stroke-width="2"/>`;
+    s += `<path d="M 238 262 Q 240 236 260 240" stroke="#d8343b" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+    return s;
+  }
+
+  function nervous() {
+    let s = silhouette(SKIN_IN, SKIN_EDGE);
+    const Y = '#f2c230', r = rng(7);
+    let side = '';
+    const arm = [[230, 182], [184, 196], [146, 214], [120, 292], [96, 380], [80, 462], [66, 540]];
+    const leg = [[230, 486], [206, 506], [194, 546], [186, 640], [180, 735], [176, 830], [172, 926], [164, 950]];
+    side += stroke(arm, Y, 2.6) + stroke(leg, Y, 3.2);
+    side += branches(arm.slice(1), r, { color: Y, width: 1.1, every: 14, len: [8, 22], depth: 2 });
+    side += branches(leg.slice(1), r, { color: Y, width: 1.2, every: 14, len: [10, 26], depth: 2 });
+    for (let y = 206; y <= 430; y += 18) { // nerves wrapping the torso
+      const w = 64 + Math.sin((y - 200) / 70) * 14;
+      side += `<path d="M 229 ${y} Q ${230 - w * 0.6} ${y - 6} ${230 - w} ${y + 10}" stroke="${Y}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
+    }
+    side += branches([[226, 130], [204, 70]], r, { color: Y, width: 1, every: 12, len: [6, 14] });
+    side += fingers(Y, 1.1, 66, 546) + toes(Y, 1.1);
+    s += mirror(side);
+    s += `<line x1="230" y1="100" x2="230" y2="490" stroke="${Y}" stroke-width="6" stroke-linecap="round"/>`;
+    s += brain('#f4a9b2', '#d97b88');
+    return s;
+  }
+
+  function skeletal() {
+    let s = silhouette(SKIN_IN, SKIN_EDGE);
+    const B = '#f6f2e9', E = '#bfb6a5';
+    const bone = (x1, y1, x2, y2, w) =>
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${E}" stroke-width="${w + 3}" stroke-linecap="round"/>` +
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${B}" stroke-width="${w}" stroke-linecap="round"/>`;
+    const knob = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${B}" stroke="${E}" stroke-width="1.5"/>`;
+    let side = '';
+    side += `<path d="M 228 180 Q 190 172 150 186" stroke="${E}" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M 228 180 Q 190 172 150 186" stroke="${B}" stroke-width="6" fill="none" stroke-linecap="round"/>`;
+    for (let i = 0; i < 10; i++) { // ribs
+      const y = 198 + i * 15, out = 160 - Math.sin(i / 9 * Math.PI) * 14 + i * 1.5;
+      const d = `M 226 ${y + 6} C 196 ${y - 6}, ${out} ${y}, ${out + 2} ${y + 30 - i}`;
+      side += `<path d="${d}" stroke="${E}" stroke-width="8" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${B}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+    }
+    side += bone(144, 204, 100, 374, 12) + knob(144, 200, 10) + knob(100, 378, 8);
+    side += bone(98, 386, 72, 534, 6) + bone(90, 384, 62, 530, 5);
+    side += `<ellipse cx="66" cy="548" rx="12" ry="9" fill="${B}" stroke="${E}" stroke-width="1.5"/>` + fingers(B, 4, 66, 552).replace(/stroke-linecap/g, 'stroke-dasharray="14 3" stroke-linecap');
+    side += `<path d="${spline([[226, 448], [196, 444], [168, 456], [162, 486], [180, 512], [206, 520], [224, 508]], true)}" fill="${B}" stroke="${E}" stroke-width="2"/>`;
+    side += `<ellipse cx="200" cy="492" rx="10" ry="13" fill="#e9d8c8" stroke="${E}" stroke-width="1.5"/>`;
+    side += bone(190, 500, 178, 722, 15) + knob(196, 494, 11) + knob(178, 726, 10);
+    side += `<ellipse cx="176" cy="740" rx="9" ry="11" fill="${B}" stroke="${E}" stroke-width="1.5"/>`;
+    side += bone(176, 752, 172, 922, 11) + bone(190, 756, 186, 918, 5);
+    side += toes(B, 4.5);
+    s += mirror(side);
+    // spine, sternum, sacrum
+    for (let y = 126; y < 470; y += 12.5) s += `<rect x="${223}" y="${y}" width="14" height="9.5" rx="3" fill="${B}" stroke="${E}" stroke-width="1.2"/>`;
+    s += `<rect x="224" y="190" width="12" height="104" rx="5" fill="${B}" stroke="${E}" stroke-width="1.5"/>`;
+    s += `<path d="M 214 452 L 246 452 L 236 504 L 224 504 Z" fill="${B}" stroke="${E}" stroke-width="1.5"/>`;
+    // skull
+    s += `<ellipse cx="230" cy="70" rx="40" ry="46" fill="${B}" stroke="${E}" stroke-width="2"/>`;
+    s += `<path d="M 204 92 Q 206 128 230 132 Q 254 128 256 92 Z" fill="${B}" stroke="${E}" stroke-width="2"/>`;
+    s += `<ellipse cx="216" cy="78" rx="9" ry="10" fill="#4a4540"/><ellipse cx="244" cy="78" rx="9" ry="10" fill="#4a4540"/>`;
+    s += `<path d="M 230 88 L 225 102 L 235 102 Z" fill="#4a4540"/>`;
+    s += `<path d="M 216 114 L 244 114" stroke="${E}" stroke-width="2"/>`;
+    for (let x = 218; x <= 242; x += 4) s += `<line x1="${x}" y1="110" x2="${x}" y2="118" stroke="${E}" stroke-width="1"/>`;
+    return s;
+  }
+
+  const LAYERS = { skeletal, nervous, outside, organs, circulatory };
+  return {
+    W, H,
+    svg(name) { return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${LAYERS[name]()}</svg>`; },
+  };
+})();
+</script>
+<script>
+// =====================================================================
+// Body layers + lens (added). Reads window.primaryPuck from the tracker:
+// { id, x, y, angleDeg } at the halo centre, or null when no puck.
+// =====================================================================
+(function () {
+  const store = {
+    get(k, d) { try { const v = parseFloat(localStorage.getItem(k)); return isFinite(v) ? v : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+  const layerEl = document.getElementById('bodyLayer');
+  const lens = document.getElementById('lens');
+  const modeLabels = document.getElementById('modeLabels');
+  const labelSpans = [...modeLabels.querySelectorAll('span')];
+  const pxPerMmNow = () => store.get('puckVis_pxPerMm', 96 / 25.4);
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- Settings panel ----------
+  let lensMm = store.get('puckBody_lensMm', 22), labelMm = store.get('puckBody_labelMm', 12), stepDeg = store.get('puckBody_step', 35);
+  function slider(id, outId, get, set, fmt) {
+    const r = document.getElementById(id), o = document.getElementById(outId);
+    r.value = get(); o.textContent = fmt(get());
+    r.addEventListener('input', () => { set(parseFloat(r.value)); o.textContent = fmt(parseFloat(r.value)); });
+  }
+  slider('lensRange', 'lensOut', () => lensMm, v => { lensMm = v; store.set('puckBody_lensMm', v); sizeLens(); }, v => v + ' mm');
+  slider('labelRange', 'labelOut', () => labelMm, v => { labelMm = v; store.set('puckBody_labelMm', v); }, v => v + ' mm');
+  slider('stepRange', 'stepOut', () => stepDeg, v => { stepDeg = v; store.set('puckBody_step', v); }, v => v + '°');
+  const panel = document.getElementById('bodyPanel');
+  const togglePanel = () => panel.classList.toggle('visible');
+  document.getElementById('bodyBtn').addEventListener('click', togglePanel);
+  document.getElementById('bodyPanelClose').addEventListener('click', () => panel.classList.remove('visible'));
+  const overlayToggle = document.getElementById('overlayToggle');
+  function setOverlay(on) { document.body.classList.toggle('clean', !on); overlayToggle.classList.toggle('on', on); store.set('puckBody_overlay', on ? 1 : 0); }
+  setOverlay(store.get('puckBody_overlay', 0) === 1);
+  overlayToggle.addEventListener('click', () => setOverlay(document.body.classList.contains('clean')));
+  document.addEventListener('keydown', e => {
+    if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+    if (e.key === 'o' || e.key === 'O') setOverlay(document.body.classList.contains('clean'));
+    if (e.key === 'b' || e.key === 'B') togglePanel();
+  });
+
+  // ---------- Rotation → layer ----------
+  // Straight (the angle the puck was put down at) = outside. Each step right: organs, circulatory.
+  // Each step left: nervous, skeletal. Layers hold steady through the middle of each step and blend at the edges.
+  const ORDER = ['skeletal', 'nervous', 'outside', 'organs', 'circulatory'];
+  let baselineId = null, baselineDeg = 0, resetBaseline = false;
+  document.getElementById('btnStraight').addEventListener('click', () => { resetBaseline = true; });
+  function layerPos(p) {
+    if (!p) return 0;
+    if (p.id !== baselineId || resetBaseline) { baselineId = p.id; baselineDeg = p.angleDeg; resetBaseline = false; }
+    const a = ((p.angleDeg - baselineDeg) % 360 + 540) % 360 - 180; // + = clockwise
+    const v = Math.max(-2, Math.min(2, a / stepDeg));
+    const base = Math.round(v), frac = v - base;               // plateau around each whole step
+    const edge = Math.max(0, Math.min(1, (Math.abs(frac) - 0.3) / 0.2));
+    const s = edge * edge * (3 - 2 * edge);
+    return base + Math.sign(frac) * s * 0.5; // continuous: meets the next step's blend at the midpoint
+  }
+
+  // ---------- Pre-render each layer at screen resolution ----------
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const main = document.createElement('canvas'); layerEl.appendChild(main);
+  const lensCanvas = document.createElement('canvas'); lens.appendChild(lensCanvas);
+  const mctx = main.getContext('2d'), lctx = lensCanvas.getContext('2d');
+  const images = {}, layers = {};
+  let W = 1, H = 1, ready = false, place = null;
+  ORDER.forEach(name => {
+    const img = new Image();
+    img.onload = () => { images[name] = img; if (Object.keys(images).length === ORDER.length) { ready = true; render(); } };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BodyArt.svg(name));
+  });
+  function render() {
+    W = window.innerWidth; H = window.innerHeight;
+    if (!W || !H || !ready) return;
+    main.width = Math.round(W * dpr); main.height = Math.round(H * dpr);
+    // Body lies horizontally, head on the left, scaled to fill the screen with a margin
+    const bodyLen = BodyArt.H, bodyWid = BodyArt.W;
+    const s = Math.min((W * 0.94) / bodyLen, (H * 0.9) / bodyWid);
+    place = { s, cx: W / 2, cy: H / 2 };
+    for (const name of ORDER) {
+      const c = layers[name] || (layers[name] = document.createElement('canvas'));
+      c.width = main.width; c.height = main.height;
+      const ctx = c.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#1a272e'; ctx.fillRect(0, 0, W, H);
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(-Math.PI / 2);                    // standing figure → lying, head left
+      ctx.scale(s, s);
+      ctx.translate(-bodyWid / 2, -bodyLen / 2);
+      ctx.drawImage(images[name], 0, 0, bodyWid, bodyLen);
+    }
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.drawImage(layers.outside, 0, 0);
+    sizeLens();
+  }
+  window.addEventListener('resize', render);
+  window.addEventListener('orientationchange', () => setTimeout(render, 250));
+
+  let lensR = 1;
+  function sizeLens() {
+    lensR = Math.max(10, lensMm * pxPerMmNow());
+    lens.style.width = lens.style.height = (lensR * 2) + 'px';
+    lensCanvas.width = lensCanvas.height = Math.round(lensR * 2 * dpr);
+  }
+  sizeLens();
+  setInterval(() => { const r = Math.max(10, lensMm * pxPerMmNow()); if (Math.abs(r - lensR) > 0.5) sizeLens(); }, 2000);
+
+  // ---------- Loop ----------
+  let shownPos = 0, shown = false, last = performance.now();
+  function tick() {
+    const now = performance.now(), dt = Math.min((now - last) / 1000, 0.05); last = now;
+    const p = window.primaryPuck || null;
+    const target = layerPos(p);
+    shownPos += (target - shownPos) * (reduceMotion ? 1 : 1 - Math.exp(-dt * 14));
+    if (p && ready) {
+      // Copy the matching patch of the chosen layer(s) into the lens, 1:1 with the body underneath
+      const sx = (p.x - lensR) * dpr, sy = (p.y - lensR) * dpr, sw = lensR * 2 * dpr;
+      const lo = Math.floor(shownPos + 1e-6), t = shownPos - lo;
+      const A = ORDER[Math.max(0, Math.min(4, lo + 2))], B = ORDER[Math.max(0, Math.min(4, lo + 3))];
+      lctx.setTransform(1, 0, 0, 1, 0, 0);
+      lctx.globalAlpha = 1; lctx.fillStyle = '#1a272e'; lctx.fillRect(0, 0, sw, sw);
+      lctx.drawImage(layers[A], sx, sy, sw, sw, 0, 0, sw, sw);
+      if (t > 0.002 && B !== A) { lctx.globalAlpha = t; lctx.drawImage(layers[B], sx, sy, sw, sw, 0, 0, sw, sw); }
+      lctx.globalAlpha = 1;
+      lens.style.left = p.x + 'px'; lens.style.top = p.y + 'px';
+      modeLabels.style.left = p.x + 'px';
+      modeLabels.style.top = (p.y - lensR - labelMm * pxPerMmNow()) + 'px';
+      const active = Math.round(shownPos);
+      labelSpans.forEach(sp => sp.classList.toggle('on', +sp.dataset.i === active));
+      if (!shown) { lens.style.display = 'block'; modeLabels.style.display = 'block'; shown = true; }
+    } else if (shown) {
+      lens.style.display = 'none'; modeLabels.style.display = 'none'; shown = false;
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+
+</body>
+</html>
