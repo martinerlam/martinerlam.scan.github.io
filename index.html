@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Puck map: projects and plug-in sales (iPad)</title>
+<title>Puck robot explorer (iPad)</title>
 <style>
   html, body {
     margin: 0;
@@ -499,121 +499,68 @@
     min-height: 16px;
   }
 
-  /* ---------- Map layer (added) ---------- */
-  #mapLayer { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: #000; }
-  #mapLayer canvas { display: block; width: 100% !important; height: 100% !important; }
-  #hud, #eqPanel, #haloCenterPanel, #hint, #debug, #mapPanel { z-index: 20; }
+  /* ---------- Body layer (added) ---------- */
+  #bodyLayer { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: #1a272e; }
+  #bodyLayer canvas, #lens canvas { display: block; width: 100%; height: 100%; }
+  #hud, #eqPanel, #haloCenterPanel, #hint, #debug, #bodyPanel { z-index: 20; }
   #stage, svg#puckSvg { z-index: 5; }
   .puckLabel, .halo { z-index: 6; }
-
-  /* The lens: what a ring puck would show through its centre */
   #lens {
     position: fixed; left: 0; top: 0; z-index: 3; border-radius: 50%; overflow: hidden;
-    background: #000; pointer-events: none; display: none;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+    background: #1a272e; pointer-events: none; display: none;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
     transform: translate(-50%, -50%);
   }
-  #lens canvas { display: block; width: 100% !important; height: 100% !important; }
   #modeLabels {
     position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; display: none;
     transform: translate(-50%, -100%); white-space: nowrap;
     font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 15px; font-weight: 700; color: #fff;
   }
-  #modeLabels span { margin: 0 10px; opacity: 0.35; transition: opacity 0.15s; }
+  #modeLabels span { margin: 0 8px; opacity: 0.35; transition: opacity 0.15s; }
   #modeLabels span.on { opacity: 1; }
-
-  /* Tracker overlay off = clean map for demos */
   body.clean #stage, body.clean svg#puckSvg, body.clean .puckLabel, body.clean #eqPanel,
   body.clean #hint, body.clean #debug { display: none !important; }
 
-  /* Map panel */
-  #mapPanel {
+  #bodyPanel {
     position: fixed; left: 12px; bottom: 12px; width: 300px; display: none; flex-direction: column; gap: 10px;
     background: rgba(20,20,20,0.92); border: 1px solid #333; border-left: 3px solid #db417b; border-radius: 10px;
     padding: 12px 14px; color: #fff; font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 13px;
     touch-action: manipulation;
   }
-  #mapPanel * { touch-action: manipulation; }
-  #mapPanel.visible { display: flex; }
-  #mapPanel .panelTitle { font-size: 12px; font-weight: 700; color: #ccc; }
-  #mapPanel .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  #mapPanel .row label { color: #aaa; }
-  #mapPanel output { font-weight: 700; font-variant-numeric: tabular-nums; }
-  #mapPanel input[type="range"] { width: 100%; accent-color: #db417b; margin: 0; }
-  #mapPanel button {
+  #bodyPanel * { touch-action: manipulation; }
+  #bodyPanel.visible { display: flex; }
+  #bodyPanel .panelTitle { font-size: 12px; font-weight: 700; color: #ccc; }
+  #bodyPanel .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #bodyPanel .row label { color: #aaa; }
+  #bodyPanel output { font-weight: 700; font-variant-numeric: tabular-nums; }
+  #bodyPanel input[type="range"] { width: 100%; accent-color: #db417b; margin: 0; }
+  #bodyPanel button {
     pointer-events: auto; cursor: pointer; background: rgba(255,255,255,0.1); color: #eee;
     font: inherit; font-size: 13px; font-weight: 600; border: none; border-radius: 8px; padding: 9px 12px;
-    -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    -webkit-tap-highlight-color: transparent;
   }
-  #mapPanel button:disabled { opacity: 0.4; }
-  #mapPanel .btnRow { display: flex; gap: 8px; }
-  #mapPanel .btnRow button { flex: 1; justify-content: center; }
-  #mapPanel .lg { display: inline-flex; align-items: center; gap: 8px; }
-  #mapPanel .sw { width: 28px; height: 8px; border-radius: 4px; }
-  #mapPanel .sw-p { background: linear-gradient(90deg, #2a0b57, #a52c60, #dd513a, #fb9b06, #fcffa4); }
-  #mapPanel .sw-s { background: linear-gradient(90deg, #0a1f3d, #1b67a0, #2f93d6, #4fc1c0, #effffa); }
-  #mapPanel .n { color: #999; font-weight: 400; font-variant-numeric: tabular-nums; }
-  #mapPanel .msg { color: #999; font-size: 12px; line-height: 1.4; margin: 0; }
-
-  /* Data buttons in the HUD: always one tap away */
-  #hud .dataBtn { display: inline-flex; align-items: center; gap: 7px; color: #fff; font-weight: 600; background: rgba(219,65,123,0.22); }
-  #hud .dataBtn:disabled { opacity: 0.45; }
-  #hud .dataBtn .n { color: #bbb; font-weight: 400; }
-  #hud .sw { width: 22px; height: 7px; border-radius: 4px; display: inline-block; }
-  #hud .sw-p { background: linear-gradient(90deg, #2a0b57, #a52c60, #dd513a, #fb9b06, #fcffa4); }
-  #hud .sw-s { background: linear-gradient(90deg, #0a1f3d, #1b67a0, #2f93d6, #4fc1c0, #effffa); }
-  #mapPanel.visible ~ #pop { left: 326px; }
-
-  /* Country picker */
-  #pop {
-    position: fixed; left: 12px; bottom: 12px; z-index: 30; width: 340px; max-height: calc(100vh - 24px);
-    display: none; flex-direction: column; background: rgba(20,20,20,0.96); border: 1px solid #333;
-    border-radius: 10px; color: #fff; font-family: -apple-system, "Helvetica Neue", sans-serif; font-size: 14px;
-    touch-action: manipulation;
-  }
-  #pop * { touch-action: manipulation; }
-  #pop.visible { display: flex; }
-  #pop .popHead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; }
-  #pop .popHead strong { font-size: 15px; }
-  #pop button { pointer-events: auto; background: rgba(255,255,255,0.1); color: #eee; font: inherit; font-weight: 600; border: none; border-radius: 8px; padding: 7px 12px; }
-  #pop input[type="search"] { margin: 0 14px 8px; font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid #444; background: #1a1a1a; color: #fff; }
-  #pop .popTools { display: flex; align-items: center; justify-content: space-between; padding: 0 14px 8px; color: #999; font-size: 12px; }
-  #pop ul { list-style: none; margin: 0; padding: 0 8px 10px; overflow: auto; flex: 1; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-  #pop li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
-  #pop li label { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; color: #eee; font-size: 14px; }
-  #pop li label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #pop input[type="checkbox"] { width: 20px; height: 20px; accent-color: #db417b; margin: 0; flex: none; }
-  #pop input[type="number"] { width: 76px; font-size: 16px; padding: 4px 6px; text-align: right; border-radius: 6px; border: 1px solid #444; background: #1a1a1a; color: #fff; }
-  #pop input[type="number"]:disabled { opacity: 0.3; }
-  #pop .empty { padding: 12px 8px; color: #999; }
+  #bodyPanel .btnRow { display: flex; gap: 8px; }
+  #bodyPanel .btnRow button { flex: 1; }
+  #bodyPanel .msg { color: #999; font-size: 12px; line-height: 1.4; margin: 0; }
 </style>
 </head>
 <body class="clean">
-<div id="mapLayer"></div>
+<div id="bodyLayer"></div>
 <div id="lens"></div>
-<div id="modeLabels"><span id="lblS">Plug-in sales</span><span id="lblM">Map</span><span id="lblP">Projects</span></div>
-<div id="mapPanel" class="ui visible">
-  <div class="panelTitle">Map</div>
-  <div class="row"><label for="liftRange">Lift height</label><output id="liftOut">2.5</output></div>
-  <input type="range" id="liftRange" min="0" max="8" step="0.1" value="2.5">
+<div id="modeLabels"><span data-i="-2">Metal skeleton</span><span data-i="-1">Fibre optics</span><span data-i="0">Outside</span><span data-i="1">Gears</span><span data-i="2">Wiring</span></div>
+<div id="bodyPanel" class="ui visible">
+  <div class="panelTitle">Robot</div>
   <div class="row"><label for="lensRange">Lens size</label><output id="lensOut">22 mm</output></div>
   <input type="range" id="lensRange" min="8" max="40" step="0.5" value="22">
   <div class="row"><label for="labelRange">Label distance</label><output id="labelOut">12 mm</output></div>
   <input type="range" id="labelRange" min="0" max="60" step="1" value="12">
-  <button id="btnProj" type="button"><span class="lg"><span class="sw sw-p"></span>Projects</span><span class="n" id="nProj">0</span></button>
-  <button id="btnSales" type="button"><span class="lg"><span class="sw sw-s"></span>Plug-in sales</span><span class="n" id="nSales">0</span></button>
-  <p class="msg" id="dataMsg">Tick countries and set their numbers. The highest numbers glow hottest.</p>
+  <div class="row"><label for="stepRange">Turn per layer</label><output id="stepOut">35°</output></div>
+  <input type="range" id="stepRange" min="15" max="60" step="1" value="35">
   <div class="btnRow">
     <button id="btnStraight" type="button">Set straight</button>
-    <button id="mapPanelClose" type="button">Close</button>
+    <button id="bodyPanelClose" type="button">Close</button>
   </div>
-  <p class="msg">Place the puck, then turn it right for projects or left for plug-in sales. Set straight makes its current angle the starting point.</p>
-</div>
-<div id="pop" class="ui" role="dialog" aria-labelledby="popTitle">
-  <div class="popHead"><strong id="popTitle">Projects</strong><button id="popClose" type="button">Done</button></div>
-  <input type="search" id="popSearch" placeholder="Search countries" aria-label="Search countries">
-  <div class="popTools"><span id="popCount">0 countries ticked</span><button id="popClear" type="button">Clear all</button></div>
-  <ul id="popList"></ul>
+  <p class="msg">Place the puck to see inside. Turn right for gears, then wiring. Turn left for fibre optics, then the metal skeleton.</p>
 </div>
 <div id="hud">
   <div>Touches: <span id="touchCount">0</span></div>
@@ -634,9 +581,7 @@
     <div class="switch"></div>
     <div class="switchLabel">Tracker overlay (o)</div>
   </div>
-  <button id="mapBtn">Map (m)</button>
-  <button id="hudProj" class="dataBtn"><span class="sw sw-p"></span>Projects <span class="n" id="hudNProj">0</span></button>
-  <button id="hudSales" class="dataBtn"><span class="sw sw-s"></span>Plug-in sales <span class="n" id="hudNSales">0</span></button>
+  <button id="bodyBtn">Body (b)</button>
 </div>
 
 <div id="haloCenterPanel">
@@ -1566,801 +1511,559 @@
   document.addEventListener('touchend', handleTouchEnd, { passive: false });
   document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.20/topojson.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/datamaps@0.5.9/dist/datamaps.world.hires.min.js"></script>
-<script>if (!window.Datamap && !window.Datamaps) document.write('<script src="https://cdn.jsdelivr.net/npm/datamaps@0.5.9/dist/datamaps.world.min.js"><\/script>');</script>
+<script>
+// ---------------------------------------------------------------------------
+// Body artwork, drawn from scratch. Figure stands in a 460 x 1000 box, centre x = 230.
+// Each layer returns an SVG string; symmetric parts are drawn for the figure's
+// right side (viewer's left) and mirrored.
+// ---------------------------------------------------------------------------
+const BodyArt = (function () {
+  // Robot edition: human outside, machine inside
+  const W = 460, H = 1000;
+  const SKIN = '#f1b48c', SKIN_EDGE = '#c98a63', SKIN_IN = '#f5c6a6';
+  const mirror = inner => `<g>${inner}</g><g transform="translate(${W},0) scale(-1,1)">${inner}</g>`;
+
+  // Smooth closed/open path through points (Catmull-Rom → cubic Bézier)
+  function spline(pts, closed) {
+    const p = closed ? [pts[pts.length - 1], ...pts, pts[0], pts[1]] : [pts[0], ...pts, pts[pts.length - 1]];
+    let d = `M ${p[1][0]} ${p[1][1]}`;
+    for (let i = 1; i < p.length - 2; i++) {
+      const [x0, y0] = p[i - 1], [x1, y1] = p[i], [x2, y2] = p[i + 1], [x3, y3] = p[i + 2];
+      d += ` C ${(x1 + (x2 - x0) / 6).toFixed(1)} ${(y1 + (y2 - y0) / 6).toFixed(1)}, ${(x2 - (x3 - x1) / 6).toFixed(1)} ${(y2 - (y3 - y1) / 6).toFixed(1)}, ${x2} ${y2}`;
+    }
+    return d + (closed ? ' Z' : '');
+  }
+  const poly = pts => 'M ' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L ');
+
+  // ---------- Silhouette ----------
+  const torsoL = [[230, 158], [190, 164], [152, 174], [130, 190], [124, 228], [134, 290], [146, 360], [150, 400], [144, 440], [146, 482], [160, 522], [196, 542], [230, 548]];
+  const torso = spline([...torsoL, ...torsoL.slice(1, -1).reverse().map(([x, y]) => [W - x, y])], true);
+  const limbs = [ // [x1,y1,x2,y2,width]
+    [140, 200, 98, 378, 40], [98, 378, 68, 540, 32],   // arm
+    [184, 500, 174, 735, 76], [174, 735, 170, 932, 48], // leg
+  ];
+  function silhouetteParts(fill, extra) {
+    const limb = limbs.map(([x1, y1, x2, y2, w]) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${fill}" stroke-width="${w + extra}" stroke-linecap="round"/>`).join('');
+    const side = limb +
+      `<ellipse cx="58" cy="586" rx="${19 + extra / 2}" ry="${40 + extra / 2}" transform="rotate(12 58 586)" fill="${fill}"/>` +
+      `<ellipse cx="164" cy="960" rx="${33 + extra / 2}" ry="${16 + extra / 2}" fill="${fill}"/>`;
+    return mirror(side) +
+      `<path d="${torso}" fill="${fill}" stroke="${fill}" stroke-width="${extra}" stroke-linejoin="round"/>` +
+      `<rect x="${208 - extra / 2}" y="112" width="${44 + extra}" height="60" rx="14" fill="${fill}"/>` +
+      `<ellipse cx="230" cy="78" rx="${44 + extra / 2}" ry="${54 + extra / 2}" fill="${fill}"/>`;
+  }
+  const silhouette = (fill, edge) => silhouetteParts(edge, 6) + silhouetteParts(fill, 0);
+
+  // ---------- Seeded branching (vessels, nerves) ----------
+  function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+  function branches(path, rand, opts) {
+    // path: polyline points; adds short side twigs, some forked
+    const { every = 26, len = [10, 26], width = 1.2, color, depth = 1 } = opts;
+    let out = '';
+    for (let i = 0; i < path.length - 1; i++) {
+      const [x1, y1] = path[i], [x2, y2] = path[i + 1];
+      const segLen = Math.hypot(x2 - x1, y2 - y1), n = Math.floor(segLen / every);
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      for (let k = 1; k <= n; k++) {
+        const t = (k - rand() * 0.6) / (n + 1), x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+        const side = rand() < 0.5 ? -1 : 1, a = ang + side * (0.5 + rand() * 0.5), L = len[0] + rand() * (len[1] - len[0]);
+        const ex = x + Math.cos(a) * L, ey = y + Math.sin(a) * L;
+        const mx = x + Math.cos(a - side * 0.25) * L * 0.55, my = y + Math.sin(a - side * 0.25) * L * 0.55;
+        out += `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${color}" stroke-width="${width}" fill="none" stroke-linecap="round"/>`;
+        if (depth > 1 && rand() < 0.6) {
+          const a2 = a + (rand() - 0.5) * 1.2, L2 = L * 0.55;
+          out += `<line x1="${ex.toFixed(1)}" y1="${ey.toFixed(1)}" x2="${(ex + Math.cos(a2) * L2).toFixed(1)}" y2="${(ey + Math.sin(a2) * L2).toFixed(1)}" stroke="${color}" stroke-width="${(width * 0.7).toFixed(2)}" stroke-linecap="round"/>`;
+        }
+      }
+    }
+    return out;
+  }
+  const stroke = (pts, color, w, smooth = true) => `<path d="${smooth ? spline(pts, false) : poly(pts)}" stroke="${color}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const fingers = (color, w, wx, wy) => [[-24, 52], [-12, 66], [0, 70], [12, 64], [24, 46]]
+    .map(([dx, dy]) => `<line x1="${wx}" y1="${wy}" x2="${wx + dx * 0.9 - 6}" y2="${wy + dy}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`).join('');
+  const toes = (color, w) => [[-26, 12], [-14, 18], [-2, 20], [10, 18], [20, 12]]
+    .map(([dx, dy]) => `<line x1="166" y1="940" x2="${166 + dx}" y2="${952 + dy}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`).join('');
+
+  // ---------- Layers ----------
+  function outside() {
+    return silhouette(SKIN, SKIN_EDGE) +
+      // soft light down the body and a few surface cues
+      `<ellipse cx="208" cy="300" rx="40" ry="120" fill="#ffffff" opacity="0.10"/>` +
+      `<ellipse cx="214" cy="62" rx="18" ry="26" fill="#ffffff" opacity="0.12"/>` +
+      `<circle cx="230" cy="452" r="3.2" fill="${SKIN_EDGE}" opacity="0.8"/>` +
+      mirror(`<path d="M 226 186 Q 196 182 162 190" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.45" stroke-linecap="round"/>` +
+        `<path d="M 160 728 Q 174 740 188 728" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.45" stroke-linecap="round"/>`) +
+      `<path d="M 218 520 Q 230 532 242 520" stroke="${SKIN_EDGE}" stroke-width="2" fill="none" opacity="0.4"/>`;
+  }
+
+
+  // ---------- Robot interior (detailed) ----------
+  const DARK = '#1b2328';
+  const inside = (base = DARK) => silhouette(base, SKIN_EDGE);
+  const f1 = n => n.toFixed(1);
+
+  // Shared paint: gradients for brushed steel, brass, chrome, rubies
+  const DEFS = `<defs>
+    <radialGradient id="gSteel" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#f1f4f6"/><stop offset="0.55" stop-color="#b9c3ca"/><stop offset="1" stop-color="#7d8890"/></radialGradient>
+    <radialGradient id="gBrass" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="0.5" stop-color="#d9ad4f"/><stop offset="1" stop-color="#9c7125"/></radialGradient>
+    <radialGradient id="gCopper" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#ffd0ad"/><stop offset="0.5" stop-color="#c9814f"/><stop offset="1" stop-color="#8a4c27"/></radialGradient>
+    <radialGradient id="gRuby" cx="38%" cy="35%" r="70%"><stop offset="0" stop-color="#ff9db4"/><stop offset="0.45" stop-color="#d0204d"/><stop offset="1" stop-color="#6e0a22"/></radialGradient>
+    <linearGradient id="gPlate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a9b3ba"/><stop offset="0.5" stop-color="#d5dce1"/><stop offset="1" stop-color="#8e989f"/></linearGradient>
+    <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6d7880"/><stop offset="0.35" stop-color="#f5f8fa"/><stop offset="0.6" stop-color="#a4afb6"/><stop offset="1" stop-color="#59636a"/></linearGradient>
+    <radialGradient id="gCap" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#f4f6f8"/><stop offset="1" stop-color="#8c969d"/></radialGradient>
+    <radialGradient id="gGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffffff"/><stop offset="0.3" stop-color="#7ff6ff"/><stop offset="1" stop-color="#7ff6ff" stop-opacity="0"/></radialGradient>
+  </defs>`;
+
+  // ---- watch-movement parts ----
+  function toothPath(cx, cy, r, teeth, rot) {
+    const pts = [], rIn = r - Math.max(2.2, r * 0.09);
+    for (let i = 0; i < teeth; i++) {
+      const a = rot + (i / teeth) * Math.PI * 2, s = Math.PI * 2 / teeth;
+      [[a, rIn], [a + s * 0.18, r], [a + s * 0.48, r], [a + s * 0.66, rIn]].forEach(([q, rr]) => pts.push([cx + Math.cos(q) * rr, cy + Math.sin(q) * rr]));
+    }
+    return poly(pts) + ' Z';
+  }
+  function sunburst(cx, cy, r0, r1, n, rot) {
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      const a = rot + i / n * Math.PI * 2;
+      s += `<line x1="${f1(cx + Math.cos(a) * r0)}" y1="${f1(cy + Math.sin(a) * r0)}" x2="${f1(cx + Math.cos(a) * r1)}" y2="${f1(cy + Math.sin(a) * r1)}" stroke="${i % 2 ? '#ffffff' : '#000000'}" stroke-opacity="${i % 2 ? 0.22 : 0.10}" stroke-width="0.7"/>`;
+    }
+    return s;
+  }
+  function screw(x, y, r, rot = 0.6) {
+    const dx = Math.cos(rot) * r * 0.8, dy = Math.sin(rot) * r * 0.8;
+    return `<circle cx="${x}" cy="${y}" r="${r + 1.2}" fill="#4b545a"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#gCap)"/>` +
+      `<line x1="${f1(x - dx)}" y1="${f1(y - dy)}" x2="${f1(x + dx)}" y2="${f1(y + dy)}" stroke="#2c3236" stroke-width="${f1(r * 0.32)}" stroke-linecap="round"/>`;
+  }
+  function jewel(x, y, r) {
+    return `<circle cx="${x}" cy="${y}" r="${r * 1.7}" fill="url(#gCap)" stroke="#5b656c" stroke-width="1"/><circle cx="${x}" cy="${y}" r="${r * 1.15}" fill="#6a7178"/>` +
+      `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#gRuby)"/><circle cx="${f1(x - r * 0.35)}" cy="${f1(y - r * 0.38)}" r="${f1(r * 0.28)}" fill="#ffffff" opacity="0.85"/>` +
+      `<circle cx="${x}" cy="${y}" r="${f1(r * 0.18)}" fill="#3a0612"/>`;
+  }
+  function wheel(cx, cy, r, opts = {}) {
+    const { metal = 'steel', teeth = Math.round(r * 1.25), rot = 0, spokes = 0, sun = true, hub = true } = opts;
+    const fill = metal === 'brass' ? 'url(#gBrass)' : metal === 'copper' ? 'url(#gCopper)' : 'url(#gSteel)';
+    const edge = metal === 'brass' ? '#7a5717' : metal === 'copper' ? '#6b3a1c' : '#4d565c';
+    let g = '';
+    if (spokes) {
+      // ring with spokes: real holes so parts behind show through
+      const rr = r * 0.74;
+      g += `<path d="${toothPath(cx, cy, r, teeth, rot)} M ${f1(cx + rr)} ${cy} A ${f1(rr)} ${f1(rr)} 0 1 0 ${f1(cx - rr)} ${cy} A ${f1(rr)} ${f1(rr)} 0 1 0 ${f1(cx + rr)} ${cy} Z" fill="${fill}" fill-rule="evenodd" stroke="${edge}" stroke-width="0.9"/>`;
+      for (let k = 0; k < spokes; k++) {
+        const a = rot + k / spokes * Math.PI * 2;
+        g += `<line x1="${cx}" y1="${cy}" x2="${f1(cx + Math.cos(a) * rr * 1.02)}" y2="${f1(cy + Math.sin(a) * rr * 1.02)}" stroke="${edge}" stroke-width="${f1(r * 0.13 + 1.2)}" stroke-linecap="round"/>` +
+          `<line x1="${cx}" y1="${cy}" x2="${f1(cx + Math.cos(a) * rr * 1.02)}" y2="${f1(cy + Math.sin(a) * rr * 1.02)}" stroke="${fill}" stroke-width="${f1(r * 0.13)}" stroke-linecap="round"/>`;
+      }
+      g += `<circle cx="${cx}" cy="${cy}" r="${f1(r * 0.2)}" fill="${fill}" stroke="${edge}" stroke-width="0.9"/>`;
+    } else {
+      g += `<path d="${toothPath(cx, cy, r, teeth, rot)}" fill="${fill}" stroke="${edge}" stroke-width="0.9"/>`;
+      if (sun) g += sunburst(cx, cy, r * 0.22, r * 0.86, Math.max(24, Math.round(r * 2.2)), rot);
+      g += `<circle cx="${cx}" cy="${cy}" r="${f1(r * 0.62)}" fill="none" stroke="#00000033" stroke-width="${f1(Math.max(0.8, r * 0.04))}"/>`;
+    }
+    if (hub) g += screw(cx, cy, Math.max(2.2, r * 0.16), rot + 0.8);
+    return g;
+  }
+  function perlage(x0, y0, x1, y1, step) {
+    let s = '';
+    for (let y = y0; y <= y1; y += step) for (let x = x0 + ((y / step) % 2 ? step / 2 : 0); x <= x1; x += step)
+      s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(step * 0.62)}" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>`;
+    return s;
+  }
+
+  function gears() {
+    let s = DEFS + inside('#3b4349');
+    s += `<g opacity="1">${perlage(130, 140, 330, 540, 14)}${perlage(190, 30, 270, 120, 12)}</g>`;
+    // back layer: brass spoked wheels
+    s += wheel(196, 238, 40, { metal: 'brass', spokes: 5, rot: 0.2 }) + wheel(270, 330, 44, { metal: 'brass', spokes: 4, rot: 0.5 }) +
+      wheel(200, 430, 34, { metal: 'brass', spokes: 5, rot: 0.1 }) + wheel(262, 470, 26, { metal: 'copper', spokes: 4, rot: 0.3 });
+    // middle layer: steel gears with sunburst finish, meshing
+    s += wheel(258, 222, 30, { rot: 0.1 }) + wheel(196, 316, 36, { rot: 0.3 }) + wheel(240, 392, 24, { rot: 0.2 }) +
+      wheel(286, 262, 16, { rot: 0 }) + wheel(166, 380, 16, { metal: 'brass', rot: 0.4, sun: false }) + wheel(230, 508, 18, { rot: 0.5 });
+    // top layer: steel bridges carrying jewels and screws
+    const bridge = d => `<path d="${d}" fill="#4b545a" transform="translate(1.5 2)" opacity="0.6"/><path d="${d}" fill="url(#gPlate)" stroke="#5b656c" stroke-width="1.4"/>`;
+    s += bridge(spline([[150, 268], [196, 250], [262, 270], [300, 300], [292, 318], [252, 296], [200, 292], [156, 300]], true));
+    s += bridge(spline([[168, 446], [214, 404], [276, 402], [300, 420], [282, 432], [236, 430], [196, 470], [172, 470]], true));
+    s += jewel(196, 278, 5) + jewel(262, 286, 5) + screw(160, 286, 6, 0.3) + screw(292, 306, 5, 1.2);
+    s += jewel(240, 418, 5) + jewel(196, 448, 4.5) + screw(284, 420, 5, 0.9) + screw(178, 462, 5, 2.1);
+    s += jewel(258, 222, 4.5) + jewel(270, 330, 5) + jewel(230, 508, 4);
+    // head: balance wheel with hairspring
+    s += wheel(230, 72, 32, { metal: 'brass', spokes: 3, rot: 0.4, hub: false, teeth: 0 }).replace(/<path d="[^"]*M/, '<path d="M');
+    s += `<circle cx="230" cy="72" r="32" fill="none" stroke="url(#gBrass)" stroke-width="6"/>`;
+    let hs = ''; for (let t = 0; t < 26; t += 0.15) { const r = 4 + t * 0.85, a = t * 1.1; hs += (hs ? ' L ' : 'M ') + f1(230 + Math.cos(a) * r) + ' ' + f1(72 + Math.sin(a) * r); }
+    s += `<path d="${hs}" stroke="#d9e3ea" stroke-width="0.7" fill="none" opacity="0.8"/>` + jewel(230, 72, 5);
+    s += wheel(206, 106, 10, { rot: 0.2 }) + wheel(256, 108, 9, { metal: 'brass', rot: 0.4 });
+    // neck: arbor and pinion
+    s += `<rect x="225" y="122" width="10" height="44" rx="3" fill="url(#gChrome)" stroke="#4b545a"/>` + wheel(230, 150, 9, { rot: 0.1, sun: false });
+    // limbs: drive shafts with gear trains at the joints
+    let side = '';
+    const shaft = (x1, y1, x2, y2, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2e3439" stroke-width="${w + 3}" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#aeb8bf" stroke-width="${w}" stroke-linecap="round"/><line x1="${x1 - 1.5}" y1="${y1}" x2="${x2 - 1.5}" y2="${y2}" stroke="#eef2f4" stroke-width="${f1(w * 0.25)}" stroke-linecap="round"/>`;
+    side += shaft(142, 200, 98, 378, 8) + shaft(98, 378, 68, 540, 6) + shaft(190, 505, 174, 735, 10) + shaft(174, 735, 168, 930, 8);
+    side += wheel(142, 200, 20, { metal: 'brass', spokes: 4, rot: 0.3 }) + wheel(124, 214, 10, { rot: 0.2 }) +
+      wheel(98, 378, 16, { rot: 0.1 }) + wheel(112, 392, 8, { metal: 'brass', rot: 0, sun: false }) +
+      wheel(68, 540, 11, { metal: 'copper', rot: 0.2 }) + wheel(60, 590, 9, { rot: 0.4 }) +
+      wheel(120, 290, 9, { metal: 'brass', sun: false, rot: 0.1 }) + wheel(84, 460, 8, { rot: 0.3 }) +
+      wheel(190, 505, 24, { metal: 'brass', spokes: 5, rot: 0.1 }) + wheel(210, 528, 11, { rot: 0.3 }) +
+      wheel(174, 735, 21, { rot: 0.2 }) + wheel(156, 752, 10, { metal: 'brass', rot: 0.1, sun: false }) +
+      wheel(182, 620, 13, { metal: 'brass', spokes: 4, rot: 0.6 }) + wheel(172, 830, 12, { rot: 0.1 }) +
+      wheel(168, 930, 14, { metal: 'copper', rot: 0.4 }) + jewel(182, 620, 3) + jewel(98, 378, 3.5);
+    s += mirror(side);
+    return s;
+  }
+
+  // ---- circuit boards ----
+  function pcb(x, y, w, h, seed, color = '#1d6a43') {
+    const r = rng(seed), trace = color === '#151a1e' ? '#c9a24a' : '#3fae6e';
+    let b = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${color}" stroke="#0b2216" stroke-width="2"/>`;
+    // routed traces (orthogonal + 45° jogs) and vias
+    for (let i = 0; i < Math.round(w * h / 260); i++) {
+      let px = x + 6 + r() * (w - 12), py = y + 6 + r() * (h - 12), d = `M ${f1(px)} ${f1(py)}`;
+      for (let k = 0; k < 3; k++) {
+        const L = 6 + r() * 22, dir = Math.floor(r() * 8) * Math.PI / 4;
+        px = Math.max(x + 4, Math.min(x + w - 4, px + Math.cos(dir) * L)); py = Math.max(y + 4, Math.min(y + h - 4, py + Math.sin(dir) * L));
+        d += ` L ${f1(px)} ${f1(py)}`;
+      }
+      b += `<path d="${d}" stroke="${trace}" stroke-width="0.9" fill="none" stroke-linejoin="round" opacity="0.9"/><circle cx="${f1(px)}" cy="${f1(py)}" r="1.5" fill="none" stroke="#d8dfe3" stroke-width="0.8"/>`;
+    }
+    return b;
+  }
+  function qfp(x, y, s, label) {
+    let c = '';
+    const n = Math.max(6, Math.round(s / 2.6)), p = s / n;
+    for (let i = 0; i < n; i++) {
+      const o = -s / 2 + p * (i + 0.5);
+      c += `<rect x="${f1(x + o - p * 0.2)}" y="${f1(y - s / 2 - 3)}" width="${f1(p * 0.4)}" height="3" fill="#d6dce0"/><rect x="${f1(x + o - p * 0.2)}" y="${f1(y + s / 2)}" width="${f1(p * 0.4)}" height="3" fill="#d6dce0"/>`;
+      c += `<rect x="${f1(x - s / 2 - 3)}" y="${f1(y + o - p * 0.2)}" width="3" height="${f1(p * 0.4)}" fill="#d6dce0"/><rect x="${f1(x + s / 2)}" y="${f1(y + o - p * 0.2)}" width="3" height="${f1(p * 0.4)}" fill="#d6dce0"/>`;
+    }
+    c += `<rect x="${f1(x - s / 2)}" y="${f1(y - s / 2)}" width="${s}" height="${s}" rx="1.5" fill="#202326" stroke="#0e1012" stroke-width="1"/>`;
+    c += `<circle cx="${f1(x - s / 2 + 3.5)}" cy="${f1(y - s / 2 + 3.5)}" r="1.4" fill="#3a3f43"/>`;
+    if (label) c += `<text x="${x}" y="${f1(y + 2)}" font-family="monospace" font-size="${f1(s * 0.16)}" fill="#8e979d" text-anchor="middle">${label}</text>`;
+    return c;
+  }
+  function soic(x, y, w, h, rot = 0) {
+    let c = '', n = Math.max(3, Math.round(w / 4));
+    for (let i = 0; i < n; i++) {
+      const px = x - w / 2 + w / n * (i + 0.5);
+      c += `<rect x="${f1(px - 0.8)}" y="${f1(y - h / 2 - 2.6)}" width="1.6" height="2.6" fill="#d6dce0"/><rect x="${f1(px - 0.8)}" y="${f1(y + h / 2)}" width="1.6" height="2.6" fill="#d6dce0"/>`;
+    }
+    c += `<rect x="${f1(x - w / 2)}" y="${f1(y - h / 2)}" width="${w}" height="${h}" rx="1" fill="#1f2225"/><circle cx="${f1(x - w / 2 + 2.4)}" cy="${f1(y - h / 2 + 2.4)}" r="0.9" fill="#4a5055"/>`;
+    return rot ? `<g transform="rotate(${rot} ${x} ${y})">${c}</g>` : c;
+  }
+  const smd = (x, y, w, h, body = '#c98f5e', rot = 0) => {
+    const c = `<rect x="${f1(x - w / 2)}" y="${f1(y - h / 2)}" width="${w}" height="${h}" rx="0.8" fill="${body}"/><rect x="${f1(x - w / 2)}" y="${f1(y - h / 2)}" width="${f1(w * 0.22)}" height="${h}" fill="#dfe5e8"/><rect x="${f1(x + w / 2 - w * 0.22)}" y="${f1(y - h / 2)}" width="${f1(w * 0.22)}" height="${h}" fill="#dfe5e8"/>`;
+    return rot ? `<g transform="rotate(${rot} ${x} ${y})">${c}</g>` : c;
+  };
+  const ecap = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r + 1}" fill="#14181b"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#gCap)"/><path d="M ${f1(x - r * 0.7)} ${f1(y - r * 0.2)} L ${f1(x + r * 0.7)} ${f1(y - r * 0.2)} M ${f1(x - r * 0.2)} ${f1(y - r * 0.7)} L ${f1(x - r * 0.2)} ${f1(y + r * 0.7)}" stroke="#6e787f" stroke-width="0.8"/>`;
+  function header(x, y, n, color = '#16191c', cols = 1) {
+    let c = `<rect x="${x}" y="${y}" width="${n * 5}" height="${cols * 5}" rx="0.8" fill="${color}"/>`;
+    for (let j = 0; j < cols; j++) for (let i = 0; i < n; i++) c += `<rect x="${f1(x + 1.6 + i * 5)}" y="${f1(y + 1.6 + j * 5)}" width="1.8" height="1.8" fill="#e2b545"/>`;
+    return c;
+  }
+  const terminal = (x, y, n) => { let c = `<rect x="${x}" y="${y}" width="${n * 9}" height="10" rx="1" fill="#3aa35a" stroke="#1d5e31" stroke-width="1"/>`; for (let i = 0; i < n; i++) c += screw(x + 4.5 + i * 9, y + 5, 2.8, 0.7); return c; };
+  function populate(x, y, w, h, seed) {
+    const r = rng(seed); let c = '';
+    for (let i = 0; i < Math.round(w * h / 140); i++) {
+      const px = x + 6 + r() * (w - 12), py = y + 6 + r() * (h - 12), k = r();
+      if (k < 0.55) c += smd(+px.toFixed(1), +py.toFixed(1), 5 + r() * 3, 2.6 + r() * 1.2, r() < 0.5 ? '#c98f5e' : '#2a2d30', r() < 0.4 ? 90 : 0);
+      else if (k < 0.8) c += `<circle cx="${f1(px)}" cy="${f1(py)}" r="1.6" fill="none" stroke="#d8dfe3" stroke-width="0.8"/>`;
+      else c += smd(+px.toFixed(1), +py.toFixed(1), 3, 1.6, '#3a6fb0');
+    }
+    return c;
+  }
+
+  function wiring() {
+    let s = DEFS + inside();
+    const COLS = ['#e0453a', '#3b7bd9', '#f2c230', '#3fb36b', '#e8e8e8', '#16191c'];
+    function loom(pts, w = 2.6, gap = 2.9, n = 6) {
+      let o = '';
+      for (let i = 0; i < n; i++) {
+        const off = (i - (n - 1) / 2) * gap, p2 = pts.map(([x, y]) => [x + off, y]);
+        o += stroke(p2, '#0c0f11', w + 1.4) + stroke(p2, COLS[i % COLS.length], w) + stroke(p2.map(([x, y]) => [x - w * 0.25, y]), '#ffffff', w * 0.22).replace('stroke="#ffffff"', 'stroke="#ffffff" stroke-opacity="0.35"');
+      }
+      for (let i = 1; i < pts.length - 1; i++) {
+        const [x, y] = pts[i];
+        o += `<rect x="${f1(x - gap * n / 2 - 3)}" y="${y - 2.5}" width="${f1(gap * n + 6)}" height="5" rx="2" fill="#20252a" stroke="#0c0f11" stroke-width="0.8"/><rect x="${f1(x + gap * n / 2 + 1)}" y="${y - 1.5}" width="4" height="3" fill="#20252a"/>`;
+      }
+      return o;
+    }
+    const ribbon = (pts, w = 12) => stroke(pts, '#9aa3a9', w) + stroke(pts, '#c5ccd1', w - 3).replace('stroke-width', 'stroke-dasharray="1 1.2" stroke-width') + stroke(pts.map(([x, y]) => [x - w / 2 + 2, y]), '#d0453a', 1.2);
+    const plug = (x, y, w = 24, h = 12) => `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="2" fill="#f2f2ee" stroke="#9aa3a9" stroke-width="1"/>` + header(x - w / 2 + 2, y - 2.5, Math.floor((w - 4) / 5), '#d9d9d4');
+
+    let side = '';
+    side += loom([[214, 196], [170, 204], [138, 236], [112, 320], [96, 382], [82, 460], [68, 536]], 2, 2.3);
+    side += ribbon([[200, 488], [192, 540], [184, 620], [178, 700]], 12) + loom([[206, 500], [196, 560], [186, 640], [178, 700], [174, 780], [172, 860], [168, 924]], 2.2, 2.6);
+    side += pcb(78, 410, 30, 46, 41, '#151a1e') + soic(93, 424, 14, 7, -14) + populate(80, 440, 26, 14, 43) + header(82, 413, 4, '#d0453a');
+    side += pcb(160, 590, 38, 58, 47) + qfp(179, 612, 16) + populate(162, 628, 34, 18, 49) + terminal(162, 592, 2);
+    side += plug(98, 380, 22) + plug(174, 736, 26) + plug(68, 540, 16, 10) + plug(168, 928, 18, 10);
+    const fan = (wx, wy, tips) => tips.map(([dx, dy], i) => stroke([[wx, wy], [wx + dx * 0.5, wy + dy * 0.6], [wx + dx, wy + dy]], COLS[i % 5], 1.3)).join('');
+    side += fan(66, 546, [[-26, 52], [-14, 66], [-2, 70], [10, 64], [20, 46]]) + fan(166, 934, [[-28, 26], [-16, 34], [-4, 36], [8, 34], [18, 26]]);
+    s += mirror(side);
+    // chest: green main board; abdomen: black controller board; head: processor board
+    s += pcb(156, 196, 148, 128, 3);
+    s += qfp(196, 236, 30, 'CPU') + qfp(262, 290, 22) + soic(256, 226, 26, 10) + soic(192, 292, 22, 9) + soic(222, 276, 16, 8, 90);
+    s += populate(158, 198, 144, 124, 5) + ecap(284, 214, 7) + ecap(170, 310, 6) + header(220, 200, 7, '#16191c', 2) + `<rect x="158" y="314" width="144" height="6" fill="#c9a24a" opacity="0.5"/>`;
+    s += pcb(168, 342, 124, 112, 9, '#151a1e');
+    s += qfp(230, 392, 22) + soic(196, 364, 20, 9) + soic(266, 364, 20, 9) + ecap(186, 430, 7) + ecap(276, 430, 7) + ecap(204, 434, 5);
+    s += header(176, 446, 8, '#d0453a') + header(222, 446, 6, '#2d6fc9') + terminal(254, 344, 3) + populate(170, 400, 120, 40, 11);
+    s += `<text x="230" y="418" font-family="Helvetica, Arial, sans-serif" font-size="7" font-weight="700" fill="#e8e8e8" text-anchor="middle">RH-CTRL V1.3</text>`;
+    s += pcb(196, 36, 68, 72, 13, '#151a1e') + qfp(230, 64, 26, 'NPU') + populate(198, 86, 64, 20, 15) + header(200, 40, 6, '#2d6fc9');
+    s += ribbon([[230, 112], [230, 192]], 16) + loom([[230, 324], [230, 342]], 2.6, 3) + loom([[230, 456], [230, 500]], 2.6, 3);
+    return s;
+  }
+
+  function fibre() {
+    let s = DEFS + inside();
+    const Y = '#f3c321', YD = '#a37f0e', BLUE = '#2f7fe0', BLUED = '#1a4f97';
+    const glowDot = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r * 3}" fill="url(#gGlow)" opacity="0.8"/><circle cx="${x}" cy="${y}" r="${f1(r * 0.6)}" fill="#ffffff"/>`;
+    const cable = (pts, w = 3.2) => stroke(pts, YD, w + 1.4) + stroke(pts, Y, w) + stroke(pts.map(([x, y]) => [x - w * 0.25, y - w * 0.15]), '#fff3b0', w * 0.3).replace('stroke="#fff3b0"', 'stroke="#fff3b0" stroke-opacity="0.7"');
+    const boot = (x, y, ang, len = 18) => {
+      // blue strain-relief boot with ribbing + SC connector body + white ferrule
+      const g = `<g transform="rotate(${ang} ${x} ${y})">` +
+        `<rect x="${x - 4}" y="${y}" width="8" height="${len}" rx="3" fill="${BLUE}" stroke="${BLUED}" stroke-width="0.8"/>` +
+        Array.from({ length: Math.floor(len / 3) }, (_, i) => `<line x1="${x - 4}" y1="${y + 2 + i * 3}" x2="${x + 4}" y2="${y + 2 + i * 3}" stroke="${BLUED}" stroke-width="0.7"/>`).join('') +
+        `<rect x="${x - 6}" y="${y - 12}" width="12" height="13" rx="1.5" fill="#3b8ef0" stroke="${BLUED}" stroke-width="1"/>` +
+        `<rect x="${x - 3.6}" y="${y - 10}" width="7.2" height="7.2" rx="1" fill="#f4f6f8" stroke="#aab4bb" stroke-width="0.6"/><circle cx="${x}" cy="${y - 6.4}" r="1.6" fill="#c9d1d6"/></g>`;
+      return g;
+    };
+    const tag = (x, y, t) => `<rect x="${x - 5}" y="${y - 4}" width="10" height="8" rx="1.5" fill="#f0a020" stroke="#9a6410" stroke-width="0.6"/><text x="${x}" y="${y + 2.6}" font-family="Helvetica, Arial, sans-serif" font-size="6" font-weight="700" fill="#1b1b1b" text-anchor="middle">${t}</text>`;
+    // patch panel down the sternum: blue SC ports in a steel rail
+    let panel = `<rect x="196" y="196" width="68" height="132" rx="5" fill="url(#gPlate)" stroke="#5b656c" stroke-width="1.5"/>`;
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 2; c++) {
+      const px = 206 + c * 30, py = 206 + r * 20;
+      panel += `<rect x="${px}" y="${py}" width="18" height="15" rx="1.5" fill="#3b8ef0" stroke="${BLUED}" stroke-width="1"/><rect x="${px + 4}" y="${py + 3}" width="10" height="9" fill="#123f78"/>` + screw(px + 23, py + 7.5, 1.8, 0.6);
+    }
+    s += panel;
+    let side = '';
+    // bundles out of the panel to the arm and leg, with connector boots at the panel end
+    const armRuns = [[[206, 214], [182, 204], [150, 210], [124, 290], [100, 380], [84, 460], [68, 536]],
+      [[206, 234], [178, 222], [146, 222], [120, 294], [96, 384], [80, 462], [64, 538]],
+      [[206, 254], [174, 240], [142, 236], [116, 298], [92, 388], [76, 466], [60, 540]]];
+    armRuns.forEach((run, i) => { side += cable(run, 2.6); });
+    armRuns.forEach((run, i) => { side += boot(run[0][0] - 2, run[0][1], 90, 14); });
+    const legRuns = [[[206, 314], [196, 360], [194, 440], [196, 500], [188, 560], [182, 650], [178, 740], [174, 830], [170, 926]],
+      [[206, 294], [190, 340], [186, 430], [188, 500], [182, 560], [176, 650], [172, 740], [168, 830], [164, 926]]];
+    legRuns.forEach(run => { side += cable(run, 3); });
+    legRuns.forEach(run => { side += boot(run[0][0] - 2, run[0][1], 90, 14); });
+    side += tag(130, 262, 'A') + tag(118, 300, 'B') + tag(194, 560, 'L') + tag(180, 600, 'R');
+    // splice trays at elbow and knee: a coil of spare fibre in a clear tray
+    const tray = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#2a3238" stroke="#7d8890" stroke-width="1.5"/>` +
+      [0.55, 0.7, 0.85].map(k => `<circle cx="${x}" cy="${y}" r="${f1(r * k)}" fill="none" stroke="${Y}" stroke-width="1.6"/>`).join('') + glowDot(x, y, 2.4);
+    side += tray(98, 382, 15) + tray(176, 736, 17);
+    // fan-out to fingertips and toes, light at every tip
+    const fanTips = [[40, 598], [52, 612], [64, 616], [76, 610], [86, 592]], toeTips = [[140, 962], [152, 970], [164, 972], [176, 970], [186, 962]];
+    fanTips.forEach(([x, y]) => { side += cable([[66, 540], [(66 + x) / 2, 560], [x, y]], 1.3) + glowDot(x, y, 1.8); });
+    toeTips.forEach(([x, y]) => { side += cable([[168, 928], [(168 + x) / 2, 945], [x, y]], 1.3) + glowDot(x, y, 1.8); });
+    // light pulses travelling the fibres
+    [[110, 330], [88, 420], [72, 500], [190, 470], [180, 690], [172, 880]].forEach(([x, y]) => { side += glowDot(x, y, 1.6); });
+    s += mirror(side);
+    // optical transceiver in the head, trunk to the panel
+    s += `<rect x="200" y="44" width="60" height="50" rx="6" fill="url(#gPlate)" stroke="#5b656c" stroke-width="1.5"/>`;
+    for (let i = 0; i < 4; i++) s += `<rect x="${206 + i * 13}" y="54" width="9" height="12" rx="1" fill="#3b8ef0" stroke="${BLUED}"/>`;
+    s += `<rect x="208" y="74" width="44" height="12" rx="2" fill="#1a1f23"/>` + glowDot(216, 80, 1.6) + glowDot(230, 80, 1.6) + glowDot(244, 80, 1.6);
+    for (let i = 0; i < 4; i++) s += cable([[210 + i * 13, 94], [222 + i * 5, 140], [218 + i * 8, 196]], 2.2);
+    return s;
+  }
+
+  function metal() {
+    let s = DEFS + inside();
+    const E = '#3e474e';
+    const bone = (x1, y1, x2, y2, w) => {
+      const nx = -(y2 - y1), ny = x2 - x1, L = Math.hypot(nx, ny), ox = nx / L, oy = ny / L;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${E}" stroke-width="${w + 4}" stroke-linecap="round"/>` +
+        `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#9aa6ae" stroke-width="${w}" stroke-linecap="round"/>` +
+        `<line x1="${f1(x1 + ox * w * 0.18)}" y1="${f1(y1 + oy * w * 0.18)}" x2="${f1(x2 + ox * w * 0.18)}" y2="${f1(y2 + oy * w * 0.18)}" stroke="#d5dde2" stroke-width="${f1(w * 0.35)}" stroke-linecap="round"/>` +
+        `<line x1="${f1(x1 + ox * w * 0.28)}" y1="${f1(y1 + oy * w * 0.28)}" x2="${f1(x2 + ox * w * 0.28)}" y2="${f1(y2 + oy * w * 0.28)}" stroke="#ffffff" stroke-width="${f1(Math.max(0.6, w * 0.08))}" stroke-linecap="round" opacity="0.8"/>`;
+    };
+    function capScrew(x, y, r) {
+      const hex = Array.from({ length: 6 }, (_, i) => [x + Math.cos(i * Math.PI / 3) * r * 0.45, y + Math.sin(i * Math.PI / 3) * r * 0.45]);
+      return `<circle cx="${x}" cy="${y}" r="${r + 1.5}" fill="${E}"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#gCap)"/><path d="${poly(hex)} Z" fill="#23292d"/>`;
+    }
+    function bearing(x, y, r) {
+      return `<circle cx="${x}" cy="${y}" r="${r + 2}" fill="${E}"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#gSteel)"/>` +
+        `<circle cx="${x}" cy="${y}" r="${f1(r * 0.72)}" fill="none" stroke="#5b656c" stroke-width="1.2"/>` +
+        Array.from({ length: 8 }, (_, i) => { const a = i / 8 * Math.PI * 2; return `<circle cx="${f1(x + Math.cos(a) * r * 0.72)}" cy="${f1(y + Math.sin(a) * r * 0.72)}" r="${f1(r * 0.12)}" fill="#e8edf0" stroke="#5b656c" stroke-width="0.5"/>`; }).join('') +
+        capScrew(x, y, r * 0.38);
+    }
+    function piston(x1, y1, x2, y2) {
+      const mx = x1 + (x2 - x1) * 0.55, my = y1 + (y2 - y1) * 0.55;
+      return `<line x1="${x1}" y1="${y1}" x2="${mx}" y2="${my}" stroke="${E}" stroke-width="11" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${mx}" y2="${my}" stroke="#2f363b" stroke-width="8" stroke-linecap="round"/>` +
+        `<line x1="${x1 - 1.5}" y1="${y1}" x2="${mx - 1.5}" y2="${my}" stroke="#6f7a82" stroke-width="2" stroke-linecap="round"/>` +
+        `<line x1="${mx}" y1="${my}" x2="${x2}" y2="${y2}" stroke="#59636a" stroke-width="5" stroke-linecap="round"/><line x1="${mx - 0.8}" y1="${my}" x2="${x2 - 0.8}" y2="${y2}" stroke="#f3f6f8" stroke-width="2" stroke-linecap="round"/>` +
+        `<circle cx="${x1}" cy="${y1}" r="4" fill="url(#gCap)" stroke="${E}"/><circle cx="${x2}" cy="${y2}" r="3.5" fill="url(#gCap)" stroke="${E}"/>`;
+    }
+    let side = '';
+    side += `<path d="M 228 180 Q 190 172 150 186" stroke="${E}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M 228 180 Q 190 172 150 186" stroke="#c3ccd2" stroke-width="7" fill="none" stroke-linecap="round"/>` + capScrew(190, 177, 3);
+    for (let i = 0; i < 10; i++) {
+      const y = 198 + i * 15, out = 160 - Math.sin(i / 9 * Math.PI) * 14 + i * 1.5;
+      const d = `M 226 ${y + 6} C 196 ${y - 6}, ${out} ${y}, ${out + 2} ${y + 30 - i}`;
+      side += `<path d="${d}" stroke="${E}" stroke-width="8.5" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#b5c0c7" stroke-width="5" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#ffffff" stroke-width="1" fill="none" stroke-opacity="0.6" transform="translate(0 -1.2)"/>`;
+      side += `<circle cx="${f1(out + 6)}" cy="${f1(y + 4)}" r="1.4" fill="${E}"/>`;
+    }
+    side += piston(152, 222, 112, 352) + bone(144, 204, 100, 374, 12) + bearing(144, 200, 11) + bearing(100, 378, 9.5);
+    side += piston(106, 396, 80, 512) + bone(96, 386, 72, 534, 6.5) + bone(86, 384, 60, 530, 5) + bearing(66, 546, 7);
+    side += [[-24, 52], [-12, 66], [0, 70], [12, 64], [24, 46]].map(([dx, dy]) => {
+      const ex = 66 + dx * 0.9 - 6, ey = 552 + dy, mx = (66 + ex) / 2, my = (552 + ey) / 2;
+      return bone(66, 552, mx, my, 3.8) + bone(mx, my, ex, ey, 3.2) + `<circle cx="${f1(mx)}" cy="${f1(my)}" r="2.6" fill="url(#gCap)" stroke="${E}" stroke-width="0.6"/>`;
+    }).join('');
+    side += `<path d="${spline([[226, 448], [196, 444], [168, 456], [162, 486], [180, 512], [206, 520], [224, 508]], true)}" fill="url(#gPlate)" stroke="${E}" stroke-width="2.5"/>`;
+    side += `<ellipse cx="190" cy="468" rx="9" ry="6" fill="#23292d"/><ellipse cx="206" cy="500" rx="6" ry="5" fill="#23292d"/>` + capScrew(176, 486, 3) + capScrew(214, 462, 3);
+    side += piston(206, 530, 190, 704) + bone(190, 500, 178, 722, 15) + bearing(196, 494, 12) + bearing(178, 728, 12);
+    side += piston(162, 758, 160, 900) + bone(176, 752, 172, 922, 10) + bone(190, 756, 186, 918, 4.5) + bearing(172, 930, 8);
+    side += [[-26, 12], [-14, 18], [-2, 20], [10, 18], [20, 12]].map(([dx, dy]) => bone(170, 936, 166 + dx, 952 + dy, 3.6)).join('');
+    s += mirror(side);
+    // spine: machined segments with dark discs, centre bolts
+    for (let y = 126; y < 470; y += 12.5) s += `<rect x="219" y="${y}" width="22" height="9" rx="2" fill="url(#gPlate)" stroke="${E}" stroke-width="1.2"/><rect x="223" y="${y + 9}" width="14" height="3.5" fill="#23292d"/><circle cx="230" cy="${y + 4.5}" r="1.8" fill="${E}"/>`;
+    s += `<rect x="222" y="190" width="16" height="106" rx="3" fill="url(#gPlate)" stroke="${E}" stroke-width="2"/>`;
+    for (let y = 200; y < 290; y += 18) s += capScrew(230, y, 3.4);
+    s += `<path d="M 212 452 L 248 452 L 238 506 L 222 506 Z" fill="url(#gPlate)" stroke="${E}" stroke-width="2"/>` + capScrew(230, 470, 3.5);
+    // robot skull: panelled helmet, glowing visor, ear actuators, vented jaw
+    s += `<path d="${spline([[230, 24], [264, 32], [274, 70], [266, 102], [230, 110], [194, 102], [186, 70], [196, 32]], true)}" fill="url(#gSteel)" stroke="${E}" stroke-width="2.5"/>`;
+    s += `<path d="M 230 26 L 230 62 M 200 48 Q 230 40 260 48" stroke="#5b656c" stroke-width="1.2" fill="none"/>`;
+    s += `<rect x="196" y="66" width="68" height="18" rx="9" fill="#101417" stroke="${E}" stroke-width="1.5"/>`;
+    s += `<rect x="204" y="70" width="20" height="10" rx="5" fill="#7ff6ff"/><rect x="236" y="70" width="20" height="10" rx="5" fill="#7ff6ff"/>`;
+    s += `<circle cx="214" cy="75" r="12" fill="url(#gGlow)" opacity="0.5"/><circle cx="246" cy="75" r="12" fill="url(#gGlow)" opacity="0.5"/>`;
+    s += bearing(186, 78, 8) + bearing(274, 78, 8);
+    s += `<rect x="206" y="94" width="48" height="32" rx="7" fill="url(#gPlate)" stroke="${E}" stroke-width="2"/>`;
+    for (let x = 213; x <= 247; x += 5) s += `<rect x="${x - 1.2}" y="101" width="2.4" height="18" rx="1.2" fill="#23292d"/>`;
+    s += capScrew(200, 40, 2.6) + capScrew(260, 40, 2.6);
+    return s;
+  }
+
+  const LAYERS = { metal, fibre, outside, gears, wiring };
+  return {
+    W, H,
+    svg(name) { return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${LAYERS[name]()}</svg>`; },
+  };
+})();
+</script>
 <script>
 // =====================================================================
-// Map + lens layer (added). Reads window.primaryPuck, which the tracker
-// above sets every touch frame: { id, x, y, angleDeg } at the halo centre.
+// Body layers + lens (added). Reads window.primaryPuck from the tracker:
+// { id, x, y, angleDeg } at the halo centre, or null when no puck.
 // =====================================================================
 (function () {
   const store = {
     get(k, d) { try { const v = parseFloat(localStorage.getItem(k)); return isFinite(v) ? v : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
-  const mapLayer = document.getElementById('mapLayer');
+  const layerEl = document.getElementById('bodyLayer');
   const lens = document.getElementById('lens');
   const modeLabels = document.getElementById('modeLabels');
-  const lblS = document.getElementById('lblS'), lblM = document.getElementById('lblM'), lblP = document.getElementById('lblP');
-  const dataMsg = document.getElementById('dataMsg');
+  const labelSpans = [...modeLabels.querySelectorAll('span')];
+  const pxPerMmNow = () => store.get('puckVis_pxPerMm', 96 / 25.4);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let liftHeight = store.get('puckMap_lift', 2.5);
-  let lensMm = store.get('puckMap_lensMm', 22);
-  let labelMm = store.get('puckMap_labelMm', 12);
-  const pxPerMmNow = () => store.get('puckVis_pxPerMm', 96 / 25.4);
-
-  // ---------- Every country, for the pickers ----------
-  // [ISO code, name, approx. centre lat, lon]. Places missing from the map outlines get a marker at their centre.
-  const COUNTRY_LIST = [
-    ["AFG", "Afghanistan", 33.9, 67.7],
-    ["ALA", "Åland Islands", 60.2, 20.0],
-    ["ALB", "Albania", 41.2, 20.2],
-    ["DZA", "Algeria", 28.0, 1.7],
-    ["ASM", "American Samoa", -14.3, -170.7],
-    ["AND", "Andorra", 42.5, 1.5],
-    ["AGO", "Angola", -11.2, 17.9],
-    ["AIA", "Anguilla", 18.2, -63.1],
-    ["ATG", "Antigua and Barbuda", 17.1, -61.8],
-    ["ARG", "Argentina", -38.4, -63.6],
-    ["ARM", "Armenia", 40.1, 45.0],
-    ["ABW", "Aruba", 12.5, -70.0],
-    ["AUS", "Australia", -25.3, 133.8],
-    ["AUT", "Austria", 47.5, 14.6],
-    ["AZE", "Azerbaijan", 40.1, 47.6],
-    ["BHS", "Bahamas", 25.0, -77.4],
-    ["BHR", "Bahrain", 26.0, 50.6],
-    ["BGD", "Bangladesh", 23.7, 90.4],
-    ["BRB", "Barbados", 13.2, -59.5],
-    ["BLR", "Belarus", 53.7, 28.0],
-    ["BEL", "Belgium", 50.5, 4.5],
-    ["BLZ", "Belize", 17.2, -88.5],
-    ["BEN", "Benin", 9.3, 2.3],
-    ["BMU", "Bermuda", 32.3, -64.8],
-    ["BTN", "Bhutan", 27.5, 90.4],
-    ["BOL", "Bolivia", -16.3, -63.6],
-    ["BIH", "Bosnia and Herzegovina", 43.9, 17.7],
-    ["BWA", "Botswana", -22.3, 24.7],
-    ["BRA", "Brazil", -14.2, -51.9],
-    ["VGB", "British Virgin Islands", 18.4, -64.6],
-    ["BRN", "Brunei", 4.5, 114.7],
-    ["BGR", "Bulgaria", 42.7, 25.5],
-    ["BFA", "Burkina Faso", 12.2, -1.6],
-    ["BDI", "Burundi", -3.4, 29.9],
-    ["CPV", "Cabo Verde", 16.0, -24.0],
-    ["KHM", "Cambodia", 12.6, 105.0],
-    ["CMR", "Cameroon", 7.4, 12.4],
-    ["CAN", "Canada", 56.1, -106.3],
-    ["CYM", "Cayman Islands", 19.3, -81.3],
-    ["CAF", "Central African Republic", 6.6, 20.9],
-    ["TCD", "Chad", 15.5, 18.7],
-    ["CHL", "Chile", -35.7, -71.5],
-    ["CHN", "China", 35.9, 104.2],
-    ["COL", "Colombia", 4.6, -74.3],
-    ["COM", "Comoros", -11.9, 43.9],
-    ["COG", "Congo", -0.2, 15.8],
-    ["COD", "Congo (Democratic Republic)", -4.0, 21.8],
-    ["COK", "Cook Islands", -21.2, -159.8],
-    ["CRI", "Costa Rica", 9.7, -83.8],
-    ["CIV", "Côte d'Ivoire", 7.5, -5.5],
-    ["HRV", "Croatia", 45.1, 15.2],
-    ["CUB", "Cuba", 21.5, -77.8],
-    ["CUW", "Curaçao", 12.2, -69.0],
-    ["CYP", "Cyprus", 35.1, 33.4],
-    ["CZE", "Czechia", 49.8, 15.5],
-    ["DNK", "Denmark", 56.3, 9.5],
-    ["DJI", "Djibouti", 11.8, 42.6],
-    ["DMA", "Dominica", 15.4, -61.4],
-    ["DOM", "Dominican Republic", 18.7, -70.2],
-    ["ECU", "Ecuador", -1.8, -78.2],
-    ["EGY", "Egypt", 26.8, 30.8],
-    ["SLV", "El Salvador", 13.8, -88.9],
-    ["GNQ", "Equatorial Guinea", 1.7, 10.3],
-    ["ERI", "Eritrea", 15.2, 39.8],
-    ["EST", "Estonia", 58.6, 25.0],
-    ["SWZ", "Eswatini", -26.5, 31.5],
-    ["ETH", "Ethiopia", 9.1, 40.5],
-    ["FLK", "Falkland Islands", -51.8, -59.5],
-    ["FRO", "Faroe Islands", 61.9, -6.9],
-    ["FJI", "Fiji", -17.7, 178.1],
-    ["FIN", "Finland", 61.9, 25.7],
-    ["FRA", "France", 46.2, 2.2],
-    ["GUF", "French Guiana", 3.9, -53.1],
-    ["PYF", "French Polynesia", -17.7, -149.4],
-    ["GAB", "Gabon", -0.8, 11.6],
-    ["GMB", "Gambia", 13.4, -15.3],
-    ["GEO", "Georgia", 42.3, 43.4],
-    ["DEU", "Germany", 51.2, 10.5],
-    ["GHA", "Ghana", 7.9, -1.0],
-    ["GIB", "Gibraltar", 36.1, -5.4],
-    ["GRC", "Greece", 39.1, 21.8],
-    ["GRL", "Greenland", 71.7, -42.6],
-    ["GRD", "Grenada", 12.1, -61.7],
-    ["GLP", "Guadeloupe", 16.3, -61.6],
-    ["GUM", "Guam", 13.4, 144.8],
-    ["GTM", "Guatemala", 15.8, -90.2],
-    ["GGY", "Guernsey", 49.5, -2.6],
-    ["GIN", "Guinea", 9.9, -9.7],
-    ["GNB", "Guinea-Bissau", 11.8, -15.2],
-    ["GUY", "Guyana", 4.9, -58.9],
-    ["HTI", "Haiti", 19.0, -72.3],
-    ["HND", "Honduras", 15.2, -86.2],
-    ["HKG", "Hong Kong", 22.3, 114.2],
-    ["HUN", "Hungary", 47.2, 19.5],
-    ["ISL", "Iceland", 64.9, -19.0],
-    ["IND", "India", 20.6, 79.0],
-    ["IDN", "Indonesia", -0.8, 113.9],
-    ["IRN", "Iran", 32.4, 53.7],
-    ["IRQ", "Iraq", 33.2, 43.7],
-    ["IRL", "Ireland", 53.4, -8.2],
-    ["IMN", "Isle of Man", 54.2, -4.5],
-    ["ISR", "Israel", 31.0, 34.9],
-    ["ITA", "Italy", 41.9, 12.6],
-    ["JAM", "Jamaica", 18.1, -77.3],
-    ["JPN", "Japan", 36.2, 138.3],
-    ["JEY", "Jersey", 49.2, -2.1],
-    ["JOR", "Jordan", 30.6, 36.2],
-    ["KAZ", "Kazakhstan", 48.0, 66.9],
-    ["KEN", "Kenya", -0.0, 37.9],
-    ["KIR", "Kiribati", 1.9, -157.4],
-    ["XKX", "Kosovo", 42.6, 20.9],
-    ["KWT", "Kuwait", 29.3, 47.5],
-    ["KGZ", "Kyrgyzstan", 41.2, 74.8],
-    ["LAO", "Laos", 19.9, 102.5],
-    ["LVA", "Latvia", 56.9, 24.6],
-    ["LBN", "Lebanon", 33.9, 35.9],
-    ["LSO", "Lesotho", -29.6, 28.2],
-    ["LBR", "Liberia", 6.4, -9.4],
-    ["LBY", "Libya", 26.3, 17.2],
-    ["LIE", "Liechtenstein", 47.2, 9.6],
-    ["LTU", "Lithuania", 55.2, 23.9],
-    ["LUX", "Luxembourg", 49.8, 6.1],
-    ["MAC", "Macao", 22.2, 113.5],
-    ["MDG", "Madagascar", -18.8, 46.9],
-    ["MWI", "Malawi", -13.3, 34.3],
-    ["MYS", "Malaysia", 4.2, 102.0],
-    ["MDV", "Maldives", 3.2, 73.2],
-    ["MLI", "Mali", 17.6, -4.0],
-    ["MLT", "Malta", 35.9, 14.4],
-    ["MHL", "Marshall Islands", 7.1, 171.2],
-    ["MTQ", "Martinique", 14.6, -61.0],
-    ["MRT", "Mauritania", 21.0, -10.9],
-    ["MUS", "Mauritius", -20.3, 57.6],
-    ["MYT", "Mayotte", -12.8, 45.2],
-    ["MEX", "Mexico", 23.6, -102.6],
-    ["FSM", "Micronesia", 7.4, 150.6],
-    ["MDA", "Moldova", 47.4, 28.4],
-    ["MCO", "Monaco", 43.7, 7.4],
-    ["MNG", "Mongolia", 46.9, 103.8],
-    ["MNE", "Montenegro", 42.7, 19.4],
-    ["MSR", "Montserrat", 16.7, -62.2],
-    ["MAR", "Morocco", 31.8, -7.1],
-    ["MOZ", "Mozambique", -18.7, 35.5],
-    ["MMR", "Myanmar", 21.9, 95.9],
-    ["NAM", "Namibia", -22.9, 18.5],
-    ["NRU", "Nauru", -0.5, 166.9],
-    ["NPL", "Nepal", 28.4, 84.1],
-    ["NLD", "Netherlands", 52.1, 5.3],
-    ["NCL", "New Caledonia", -20.9, 165.6],
-    ["NZL", "New Zealand", -40.9, 174.9],
-    ["NIC", "Nicaragua", 12.9, -85.2],
-    ["NER", "Niger", 17.6, 8.1],
-    ["NGA", "Nigeria", 9.1, 8.7],
-    ["NIU", "Niue", -19.1, -169.9],
-    ["PRK", "North Korea", 40.3, 127.5],
-    ["MKD", "North Macedonia", 41.6, 21.7],
-    ["MNP", "Northern Mariana Islands", 15.2, 145.7],
-    ["NOR", "Norway", 60.5, 8.5],
-    ["OMN", "Oman", 21.5, 55.9],
-    ["PAK", "Pakistan", 30.4, 69.3],
-    ["PLW", "Palau", 7.5, 134.6],
-    ["PSE", "Palestine", 31.9, 35.2],
-    ["PAN", "Panama", 8.5, -80.8],
-    ["PNG", "Papua New Guinea", -6.3, 143.9],
-    ["PRY", "Paraguay", -23.4, -58.4],
-    ["PER", "Peru", -9.2, -75.0],
-    ["PHL", "Philippines", 12.9, 121.8],
-    ["POL", "Poland", 51.9, 19.1],
-    ["PRT", "Portugal", 39.4, -8.2],
-    ["PRI", "Puerto Rico", 18.2, -66.6],
-    ["QAT", "Qatar", 25.4, 51.2],
-    ["REU", "Réunion", -21.1, 55.5],
-    ["ROU", "Romania", 45.9, 25.0],
-    ["RUS", "Russia", 61.5, 105.3],
-    ["RWA", "Rwanda", -1.9, 29.9],
-    ["BLM", "Saint Barthélemy", 17.9, -62.8],
-    ["SHN", "Saint Helena", -15.9, -5.7],
-    ["KNA", "Saint Kitts and Nevis", 17.4, -62.8],
-    ["LCA", "Saint Lucia", 13.9, -61.0],
-    ["MAF", "Saint Martin", 18.1, -63.1],
-    ["SPM", "Saint Pierre and Miquelon", 46.9, -56.3],
-    ["VCT", "Saint Vincent and the Grenadines", 13.3, -61.2],
-    ["WSM", "Samoa", -13.8, -172.1],
-    ["SMR", "San Marino", 43.9, 12.5],
-    ["STP", "São Tomé and Príncipe", 0.2, 6.6],
-    ["SAU", "Saudi Arabia", 23.9, 45.1],
-    ["SEN", "Senegal", 14.5, -14.5],
-    ["SRB", "Serbia", 44.0, 21.0],
-    ["SYC", "Seychelles", -4.7, 55.5],
-    ["SLE", "Sierra Leone", 8.5, -11.8],
-    ["SGP", "Singapore", 1.35, 103.8],
-    ["SXM", "Sint Maarten", 18.0, -63.1],
-    ["SVK", "Slovakia", 48.7, 19.7],
-    ["SVN", "Slovenia", 46.2, 15.0],
-    ["SLB", "Solomon Islands", -9.6, 160.2],
-    ["SOM", "Somalia", 5.2, 46.2],
-    ["ZAF", "South Africa", -30.6, 22.9],
-    ["KOR", "South Korea", 35.9, 127.8],
-    ["SSD", "South Sudan", 7.9, 30.0],
-    ["ESP", "Spain", 40.5, -3.7],
-    ["LKA", "Sri Lanka", 7.9, 80.8],
-    ["SDN", "Sudan", 12.9, 30.2],
-    ["SUR", "Suriname", 3.9, -56.0],
-    ["SWE", "Sweden", 60.1, 18.6],
-    ["CHE", "Switzerland", 46.8, 8.2],
-    ["SYR", "Syria", 34.8, 39.0],
-    ["TWN", "Taiwan", 23.7, 121.0],
-    ["TJK", "Tajikistan", 38.9, 71.3],
-    ["TZA", "Tanzania", -6.4, 34.9],
-    ["THA", "Thailand", 15.9, 101.0],
-    ["TLS", "Timor-Leste", -8.9, 125.7],
-    ["TGO", "Togo", 8.6, 0.8],
-    ["TON", "Tonga", -21.2, -175.2],
-    ["TTO", "Trinidad and Tobago", 10.7, -61.2],
-    ["TUN", "Tunisia", 33.9, 9.5],
-    ["TUR", "Türkiye", 39.0, 35.2],
-    ["TKM", "Turkmenistan", 38.97, 59.6],
-    ["TCA", "Turks and Caicos Islands", 21.7, -71.8],
-    ["TUV", "Tuvalu", -7.1, 177.6],
-    ["UGA", "Uganda", 1.4, 32.3],
-    ["UKR", "Ukraine", 48.4, 31.2],
-    ["ARE", "United Arab Emirates", 23.4, 53.8],
-    ["GBR", "United Kingdom", 55.4, -3.4],
-    ["USA", "United States", 37.1, -95.7],
-    ["VIR", "US Virgin Islands", 18.3, -64.9],
-    ["URY", "Uruguay", -32.5, -55.8],
-    ["UZB", "Uzbekistan", 41.4, 64.6],
-    ["VUT", "Vanuatu", -15.4, 166.9],
-    ["VAT", "Vatican City", 41.9, 12.45],
-    ["VEN", "Venezuela", 6.4, -66.6],
-    ["VNM", "Vietnam", 14.1, 108.3],
-    ["ESH", "Western Sahara", 24.2, -12.9],
-    ["YEM", "Yemen", 15.6, 48.5],
-    ["ZMB", "Zambia", -13.1, 27.8],
-    ["ZWE", "Zimbabwe", -19.0, 29.2]
-  ];
-  const COUNTRY_BY_KEY = new Map(COUNTRY_LIST.map(([k, n, la, lo]) => [k, { key: k, name: n, lat: la, lon: lo }]));
-  const KEY_BY_NAME = new Map(COUNTRY_LIST.map(([k, n]) => [n.toLowerCase(), k]));
-  window.__countryList = COUNTRY_LIST;
-
-  // ---------- Panel + toggles ----------
-  const mapPanel = document.getElementById('mapPanel');
-  const liftRange = document.getElementById('liftRange'), liftOut = document.getElementById('liftOut');
-  const lensRange = document.getElementById('lensRange'), lensOut = document.getElementById('lensOut');
-  liftRange.value = liftHeight; liftOut.textContent = liftHeight.toFixed(1);
-  lensRange.value = lensMm; lensOut.textContent = lensMm + ' mm';
-  liftRange.addEventListener('input', () => { liftHeight = parseFloat(liftRange.value); liftOut.textContent = liftHeight.toFixed(1); store.set('puckMap_lift', liftHeight); });
-  const labelRange = document.getElementById('labelRange'), labelOut = document.getElementById('labelOut');
-  labelRange.value = labelMm; labelOut.textContent = labelMm + ' mm';
-  labelRange.addEventListener('input', () => { labelMm = parseFloat(labelRange.value); labelOut.textContent = labelMm + ' mm'; store.set('puckMap_labelMm', labelMm); });
-  lensRange.addEventListener('input', () => { lensMm = parseFloat(lensRange.value); lensOut.textContent = lensMm + ' mm'; store.set('puckMap_lensMm', lensMm); sizeLens(); });
-  const toggleMapPanel = () => mapPanel.classList.toggle('visible');
-  document.getElementById('mapBtn').addEventListener('click', toggleMapPanel);
-  document.getElementById('mapPanelClose').addEventListener('click', () => mapPanel.classList.remove('visible'));
-
-  const overlayToggle = document.getElementById('overlayToggle');
-  function setOverlay(on) {
-    document.body.classList.toggle('clean', !on);
-    overlayToggle.classList.toggle('on', on);
-    store.set('puckMap_overlay', on ? 1 : 0);
+  // ---------- Settings panel ----------
+  let lensMm = store.get('puckRobot_lensMm', 22), labelMm = store.get('puckRobot_labelMm', 12), stepDeg = store.get('puckRobot_step', 35);
+  function slider(id, outId, get, set, fmt) {
+    const r = document.getElementById(id), o = document.getElementById(outId);
+    r.value = get(); o.textContent = fmt(get());
+    r.addEventListener('input', () => { set(parseFloat(r.value)); o.textContent = fmt(parseFloat(r.value)); });
   }
-  setOverlay(store.get('puckMap_overlay', 0) === 1);
+  slider('lensRange', 'lensOut', () => lensMm, v => { lensMm = v; store.set('puckRobot_lensMm', v); sizeLens(); }, v => v + ' mm');
+  slider('labelRange', 'labelOut', () => labelMm, v => { labelMm = v; store.set('puckRobot_labelMm', v); }, v => v + ' mm');
+  slider('stepRange', 'stepOut', () => stepDeg, v => { stepDeg = v; store.set('puckRobot_step', v); }, v => v + '°');
+  const panel = document.getElementById('bodyPanel');
+  const togglePanel = () => panel.classList.toggle('visible');
+  document.getElementById('bodyBtn').addEventListener('click', togglePanel);
+  document.getElementById('bodyPanelClose').addEventListener('click', () => panel.classList.remove('visible'));
+  const overlayToggle = document.getElementById('overlayToggle');
+  function setOverlay(on) { document.body.classList.toggle('clean', !on); overlayToggle.classList.toggle('on', on); store.set('puckRobot_overlay', on ? 1 : 0); }
+  setOverlay(store.get('puckRobot_overlay', 0) === 1);
   overlayToggle.addEventListener('click', () => setOverlay(document.body.classList.contains('clean')));
   document.addEventListener('keydown', e => {
     if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
     if (e.key === 'o' || e.key === 'O') setOverlay(document.body.classList.contains('clean'));
-    if (e.key === 'm' || e.key === 'M') toggleMapPanel();
+    if (e.key === 'b' || e.key === 'B') togglePanel();
   });
 
-  // ---------- Rotation picks what the lens shows ----------
-  // "Straight" is the angle the puck had when it was put down (or when Set straight was pressed)
-  const MODE_ON = 12, MODE_FULL = 40;
+  // ---------- Rotation → layer ----------
+  // Straight (the angle the puck was put down at) = outside. Each step right: gears, wiring.
+  // Each step left: fibre optics, metal skeleton. Layers hold steady through the middle of each step and blend at the edges.
+  const ORDER = ['metal', 'fibre', 'outside', 'gears', 'wiring'];
   let baselineId = null, baselineDeg = 0, resetBaseline = false;
   document.getElementById('btnStraight').addEventListener('click', () => { resetBaseline = true; });
-  function puckMode(p) {
-    if (!p) return { a: 0, t: 0, which: 'projects' };
+  function layerPos(p) {
+    if (!p) return 0;
     if (p.id !== baselineId || resetBaseline) { baselineId = p.id; baselineDeg = p.angleDeg; resetBaseline = false; }
-    const a = ((p.angleDeg - baselineDeg) % 360 + 540) % 360 - 180; // + = clockwise on screen
-    const t = Math.max(0, Math.min(1, (Math.abs(a) - MODE_ON) / (MODE_FULL - MODE_ON)));
-    return { a, t, which: a >= 0 ? 'projects' : 'sales' };
+    const a = ((p.angleDeg - baselineDeg) % 360 + 540) % 360 - 180; // + = clockwise
+    const v = Math.max(-2, Math.min(2, a / stepDeg));
+    const base = Math.round(v), frac = v - base;               // plateau around each whole step
+    const edge = Math.max(0, Math.min(1, (Math.abs(frac) - 0.3) / 0.2));
+    const s = edge * edge * (3 - 2 * edge);
+    return base + Math.sign(frac) * s * 0.5; // continuous: meets the next step's blend at the midpoint
   }
 
-  // ---------- Map ----------
-  let map = null;
-  try { map = buildMap(); }
-  catch (err) { console.error(err); dataMsg.textContent = "The map couldn't load: " + err.message; }
-
-  function buildMap() {
-    if (!window.THREE || !window.topojson) throw new Error('3D engine missing');
-    const DM = window.Datamap || window.Datamaps;
-    const topo = DM && DM.prototype && DM.prototype.worldTopo;
-    if (!topo || !topo.objects) throw new Error('map outlines missing');
-    const obj = topo.objects[Object.keys(topo.objects)[0]];
-    const fc = topojson.feature(topo, obj);
-
-    // ---------- Projection (Miller cylindrical) ----------
-    const S = 0.1; // scene units per degree
-    function proj(lon, lat) {
-      const phi = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
-      const y = 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * phi)) * 180 / Math.PI;
-      return [lon * S, y * S];
+  // ---------- Pre-render each layer at screen resolution ----------
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const main = document.createElement('canvas'); layerEl.appendChild(main);
+  const lensCanvas = document.createElement('canvas'); lens.appendChild(lensCanvas);
+  const mctx = main.getContext('2d'), lctx = lensCanvas.getContext('2d');
+  const images = {}, layers = {};
+  let W = 1, H = 1, ready = false, place = null;
+  ORDER.forEach(name => {
+    const img = new Image();
+    img.onload = () => { images[name] = img; if (Object.keys(images).length === ORDER.length) { ready = true; render(); } };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(BodyArt.svg(name));
+  });
+  function render() {
+    W = window.innerWidth; H = window.innerHeight;
+    if (!W || !H || !ready) return;
+    main.width = Math.round(W * dpr); main.height = Math.round(H * dpr);
+    // Body lies horizontally, head on the left, scaled to fill the screen with a margin
+    const bodyLen = BodyArt.H, bodyWid = BodyArt.W;
+    const s = Math.min((W * 0.94) / bodyLen, (H * 0.9) / bodyWid);
+    place = { s, cx: W / 2, cy: H / 2 };
+    for (const name of ORDER) {
+      const c = layers[name] || (layers[name] = document.createElement('canvas'));
+      c.width = main.width; c.height = main.height;
+      const ctx = c.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#1a272e'; ctx.fillRect(0, 0, W, H);
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(-Math.PI / 2);                    // standing figure → lying, head left
+      ctx.scale(s, s);
+      ctx.translate(-bodyWid / 2, -bodyLen / 2);
+      ctx.drawImage(images[name], 0, 0, bodyWid, bodyLen);
     }
-    function ringToPoints(ring) {
-      const pts = [];
-      for (const c of ring) {
-        const [x, y] = proj(c[0], c[1]);
-        const p = new THREE.Vector2(x, y);
-        if (!pts.length || pts[pts.length - 1].distanceToSquared(p) > 1e-10) pts.push(p);
-      }
-      if (pts.length > 1 && pts[0].distanceToSquared(pts[pts.length - 1]) < 1e-10) pts.pop();
-      return pts;
-    }
-
-
-    // ---------- Antimeridian handling ----------
-    // Some outlines (Russia, Fiji) cross 180°. Unwrap each ring so it's continuous,
-    // then clip it into the [-180, 180] window, wrapping any overflow to the other side.
-    function unwrapRing(ring) {
-      if (!ring || !ring.length) return [];
-      const out = [[ring[0][0], ring[0][1]]];
-      let offset = 0;
-      for (let i = 1; i < ring.length; i++) {
-        const d = ring[i][0] - ring[i - 1][0];
-        if (d > 180) offset -= 360; else if (d < -180) offset += 360;
-        out.push([ring[i][0] + offset, ring[i][1]]);
-      }
-      return out;
-    }
-    function meanLon(r) { let s = 0; for (const p of r) s += p[0]; return s / r.length; }
-    function clipRing(ring, x, keepLess) {
-      const out = [];
-      const inside = p => keepLess ? p[0] <= x : p[0] >= x;
-      for (let i = 0; i < ring.length; i++) {
-        const a = ring[i], b = ring[(i + 1) % ring.length];
-        const ia = inside(a), ib = inside(b);
-        if (ia) out.push(a);
-        if (ia !== ib) {
-          const t = (x - a[0]) / (b[0] - a[0]);
-          out.push([x, a[1] + t * (b[1] - a[1])]);
-        }
-      }
-      return out;
-    }
-    function splitAntimeridian(polys) {
-      const result = [];
-      for (const poly of polys) {
-        const outer = unwrapRing(poly && poly[0]);
-        if (outer.length < 3) continue;
-        const mo = meanLon(outer);
-        const rings = [outer];
-        for (let h = 1; h < poly.length; h++) {
-          const hole = unwrapRing(poly[h]);
-          const shift = Math.round((mo - meanLon(hole)) / 360) * 360;
-          rings.push(hole.map(p => [p[0] + shift, p[1]]));
-        }
-        let minX = Infinity, maxX = -Infinity;
-        for (const p of outer) { if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0]; }
-        if (minX >= -180 && maxX <= 180) { result.push(rings); continue; }
-        const shifts = [0];
-        if (maxX > 180) shifts.push(-360);
-        if (minX < -180) shifts.push(360);
-        for (const sh of shifts) {
-          const piece = [];
-          for (const r of rings) {
-            let c = r.map(p => [p[0] + sh, p[1]]);
-            c = clipRing(c, 180, true);
-            if (c.length >= 3) c = clipRing(c, -180, false);
-            if (c.length >= 3) piece.push(c);
-            else if (!piece.length) break; // outer ring clipped away
-          }
-          if (piece.length) result.push(piece);
-        }
-      }
-      return result;
-    }
-
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.setClearColor(0x000000, 1);
-    mapLayer.appendChild(renderer.domElement);
-
-    const lensRenderer = new THREE.WebGLRenderer({ antialias: true });
-    lensRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    lensRenderer.outputEncoding = THREE.sRGBEncoding;
-    lensRenderer.setClearColor(0x000000, 1);
-    lens.appendChild(lensRenderer.domElement);
-
-    const scene = new THREE.Scene();
-    scene.rotation.x = -Math.PI / 2;
-    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 1000);
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.55);
-    hemi.position.set(0, 0, 1); hemi.layers.enableAll(); scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffffff, 0.75);
-    sun.position.set(-12, 14, 26); sun.layers.enableAll(); scene.add(sun);
-
-    const mapGroup = new THREE.Group(); scene.add(mapGroup);
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }));
-    ocean.position.z = -0.01; ocean.layers.set(1); mapGroup.add(ocean);
-
-    const toCols = list => list.map(h => new THREE.Color(h));
-    const RAMPS = {
-      projects: toCols(['#000004', '#2a0b57', '#6a176e', '#a52c60', '#dd513a', '#fb9b06', '#f6d746', '#fcffa4']),
-      sales: toCols(['#010610', '#0a1f3d', '#123f6e', '#1b67a0', '#2f93d6', '#4fc1c0', '#9ae8d3', '#effffa']),
-    };
-    function heat(v, ramp) {
-      v = Math.max(0, Math.min(1, v)) * (ramp.length - 1);
-      const i = Math.min(ramp.length - 2, Math.floor(v));
-      return ramp[i].clone().lerp(ramp[i + 1], v - i);
-    }
-    const lin = h => new THREE.Color(h).convertSRGBToLinear();
-    const COLDS = { projects: lin('#14082e'), sales: lin('#06172a') };
-    const SEAS = { projects: lin('#0a0420'), sales: lin('#020b16') };
-
-    const BASE = 0.22;
-    const countries = [];
-    // One crisp outline per country on the ground plane, drawn over everything: no doubled top/bottom edges at rest
-    const flatMat = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false });
-    function outlineGeometry(shapes) {
-      const pos = [];
-      const addRing = pts => {
-        for (let i = 0; i < pts.length; i++) {
-          const a = pts[i], b = pts[(i + 1) % pts.length];
-          pos.push(a.x, a.y, 0, b.x, b.y, 0);
-        }
-      };
-      for (const sh of shapes) { addRing(sh.getPoints()); for (const h of sh.holes) addRing(h.getPoints()); }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      return g;
-    }
-    function addCountry(shapes, geo, key, name, isMarker) {
-      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
-        color: COLDS.projects.clone(), emissive: COLDS.projects.clone(), transparent: true, opacity: 0 }));
-      mesh.layers.set(1);
-      mesh.scale.z = BASE;
-      // Edges of the raised block: hidden at rest, fade in as it lifts
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
-      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), lineMat);
-      edges.layers.set(0); edges.visible = false;
-      mesh.add(edges);
-      const flat = new THREE.LineSegments(outlineGeometry(shapes), flatMat);
-      flat.layers.set(0); flat.renderOrder = 10;
-      mapGroup.add(flat);
-      geo.computeBoundingBox();
-      const bb = geo.boundingBox;
-      const centre = new THREE.Vector2((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2);
-      const small = isMarker || Math.hypot(bb.max.x - bb.min.x, bb.max.y - bb.min.y) < 0.8;
-      mesh.userData = { name, key, lift: 0, glow: 0, lineMat, edges, centre, small,
-        colP: COLDS.projects.clone(), colS: COLDS.sales.clone() };
-      mapGroup.add(mesh);
-      countries.push(mesh);
-      box.union(bb);
-    }
-    const box = new THREE.Box3();
-    fc.features.forEach((f, i) => {
-      if (!f.geometry || f.id === 'ATA') return; // leave Antarctica out
-      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates]
-                  : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [];
-      let pieces;
-      try { pieces = splitAntimeridian(polys); } catch (err) { console.warn('split failed', f.id, err); pieces = polys; }
-      const shapes = [];
-      for (const poly of pieces) {
-        const outer = ringToPoints(poly[0]);
-        if (outer.length < 3) continue;
-        const shape = new THREE.Shape(outer);
-        for (let h = 1; h < poly.length; h++) {
-          const hole = ringToPoints(poly[h]);
-          if (hole.length >= 3) shape.holes.push(new THREE.Path(hole));
-        }
-        shapes.push(shape);
-      }
-      if (!shapes.length) return;
-
-      let geo;
-      try { geo = new THREE.ExtrudeGeometry(shapes, { depth: 1, bevelEnabled: false, curveSegments: 1 }); }
-      catch (err) { console.warn('extrude failed', f.id, err); return; }
-      if (!geo.attributes.position || !geo.attributes.position.count) return;
-
-      const rawName = (f.properties && f.properties.name) || String(f.id);
-      const key = f.id && f.id !== '-99' ? String(f.id) : (KEY_BY_NAME.get(rawName.toLowerCase()) || rawName);
-      const ref = COUNTRY_BY_KEY.get(key);
-      addCountry(shapes, geo, key, ref ? ref.name : rawName, false);
-    });
-    // Countries missing from the outline data get a small round marker at their centre
-    const haveGeo = new Set(countries.map(m => m.userData.key));
-    for (const ref of COUNTRY_BY_KEY.values()) {
-      if (haveGeo.has(ref.key)) continue;
-      const [x, y] = proj(ref.lon, ref.lat);
-      const shape = new THREE.Shape(); shape.absarc(x, y, 0.13, 0, Math.PI * 2, false);
-      const geo = new THREE.ExtrudeGeometry([shape], { depth: 1, bevelEnabled: false, curveSegments: 20 });
-      addCountry([shape], geo, ref.key, ref.name, true);
-    }
-    const c = new THREE.Vector3(); box.getCenter(c);
-    mapGroup.position.set(-c.x, -c.y, 0);
-    ocean.position.x = c.x; ocean.position.y = c.y;
-    const mapW = box.max.x - box.min.x, mapH = box.max.y - box.min.y;
-
-    const VIEW = new THREE.Vector3(0, 0.96, 0.28).normalize();
-    let W = 1, H = 1;
-    function resize() {
-      W = window.innerWidth; H = window.innerHeight;
-      if (!W || !H) return;
-      renderer.setSize(W, H, false);
-      camera.aspect = W / H;
-      const vFov = camera.fov * Math.PI / 180;
-      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
-      const dist = Math.max((mapW * 0.5 * 1.04) / Math.tan(hFov / 2), (mapH * 0.5 * 1.12) / Math.tan(vFov / 2));
-      camera.position.copy(VIEW).multiplyScalar(dist);
-      camera.lookAt(0, 0, 0.5);
-      camera.updateProjectionMatrix();
-    }
-    resize();
-    window.addEventListener('resize', resize);
-    window.addEventListener('orientationchange', () => setTimeout(resize, 250));
-    camera.layers.set(0);
-    const lensCam = camera.clone();
-    lensCam.layers.set(0); lensCam.layers.enable(1);
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.layers.set(1);
-    const ndc = new THREE.Vector2();
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // map plane after the scene's rotation
-    const groundHit = new THREE.Vector3(), local = new THREE.Vector3();
-
-    return {
-      countryList: (() => {
-        const seen = new Set(), list = [];
-        for (const m of countries) if (!seen.has(m.userData.key)) { seen.add(m.userData.key); list.push({ key: m.userData.key, name: m.userData.name }); }
-        return list.sort((a, b) => a.name.localeCompare(b.name));
-      })(),
-      raw: { scene, mapGroup },
-      setLensSize(px) { const d = Math.max(1, Math.round(px * 2)); lensRenderer.setSize(d, d, false); },
-      applyData(d) {
-        for (const set of ['projects', 'sales']) {
-          const vals = d[set], max = Math.max(0, ...Object.values(vals));
-          for (const m of countries) {
-            const n = vals[m.userData.key] || 0;
-            const target = set === 'projects' ? m.userData.colP : m.userData.colS;
-            if (!n || !max) target.copy(COLDS[set]);
-            else target.copy(heat(0.28 + 0.72 * Math.sqrt(n / max), RAMPS[set]).convertSRGBToLinear());
-          }
-        }
-      },
-      update(dt, p, md, lensR) {
-        if (camera.aspect !== W / H) resize();
-        let hovered = null;
-        if (p) {
-          camera.updateMatrixWorld();
-          ndc.set(p.x / W * 2 - 1, -(p.y / H * 2 - 1));
-          raycaster.setFromCamera(ndc, camera);
-          const hits = raycaster.intersectObjects(countries, false);
-          if (hits.length) hovered = hits[0].object;
-          else if (raycaster.ray.intersectPlane(groundPlane, groundHit)) {
-            // Tiny places are hard to land on exactly: take the nearest one within reach
-            mapGroup.worldToLocal(local.copy(groundHit));
-            let best = null, bestD = 0.45;
-            for (const m of countries) {
-              if (!m.userData.small) continue;
-              const d = Math.hypot(local.x - m.userData.centre.x, local.y - m.userData.centre.y);
-              if (d < bestD) { bestD = d; best = m; }
-            }
-            hovered = best;
-          }
-        }
-        const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 10);
-        ocean.material.opacity = md.t;
-        ocean.material.color.copy(SEAS[md.which]);
-        for (const m of countries) {
-          const ud = m.userData;
-          const t = m === hovered ? liftHeight : 0, g = m === hovered ? 1 : 0;
-          ud.lift += (t - ud.lift) * k; ud.glow += (g - ud.glow) * k;
-          m.scale.z = BASE + ud.lift;
-          const show = ud.lift > 0.02;
-          ud.edges.visible = show;
-          if (show) ud.lineMat.opacity = Math.min(1, ud.lift / 0.4);
-          const col = md.which === 'projects' ? ud.colP : ud.colS;
-          m.material.color.copy(col);
-          m.material.emissive.copy(col).multiplyScalar(0.45 + 0.25 * ud.glow);
-          m.material.opacity = md.t;
-          m.material.visible = md.t > 0.005;
-        }
-        renderer.render(scene, camera);
-        if (p) {
-          lensCam.position.copy(camera.position);
-          lensCam.quaternion.copy(camera.quaternion);
-          lensCam.aspect = camera.aspect;
-          lensCam.setViewOffset(W, H, p.x - lensR, p.y - lensR, lensR * 2, lensR * 2);
-          lensRenderer.render(scene, lensCam);
-        }
-        return hovered ? hovered.userData : null;
-      }
-    };
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.drawImage(layers.outside, 0, 0);
+    sizeLens();
   }
+  window.addEventListener('resize', render);
+  window.addEventListener('orientationchange', () => setTimeout(render, 250));
 
-  // ---------- Lens sizing (mm on glass, using the tracker's calibration) ----------
   let lensR = 1;
   function sizeLens() {
     lensR = Math.max(10, lensMm * pxPerMmNow());
     lens.style.width = lens.style.height = (lensR * 2) + 'px';
-    if (map) map.setLensSize(lensR);
+    lensCanvas.width = lensCanvas.height = Math.round(lensR * 2 * dpr);
   }
   sizeLens();
-  window.addEventListener('storage', sizeLens);
-  setInterval(sizeLens, 2000); // picks up a new calibration saved by the tracker
-
-  // ---------- Data: projects and plug-in sales ----------
-  let data = { projects: {}, sales: {} };
-  const LS_KEY = 'renderheads-puck-heat-data';
-  function sanitize(d) {
-    const out = { projects: {}, sales: {} };
-    for (const k of ['projects', 'sales']) {
-      const src = d && typeof d[k] === 'object' && d[k] ? d[k] : {};
-      for (const [key, v] of Object.entries(src)) {
-        const n = Math.floor(Number(v));
-        if (key.length <= 60 && isFinite(n) && n > 0) out[k][key] = Math.min(n, 1e7);
-      }
-    }
-    return out;
-  }
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const inClaude = !!(window.claude && typeof window.claude.use === 'function');
-  let dbDoc = null, readOnly = false, saveTimer = 0, loaded = !inClaude;
-  const btnProj = document.getElementById('btnProj'), btnSales = document.getElementById('btnSales');
-  const hudProj = document.getElementById('hudProj'), hudSales = document.getElementById('hudSales');
-  const dataBtns = [btnProj, btnSales, hudProj, hudSales];
-  function setLoaded(msg) { loaded = true; dataBtns.forEach(b => { b.disabled = false; }); if (msg) dataMsg.textContent = msg; }
-  if (!loaded) { dataBtns.forEach(b => { b.disabled = true; }); dataMsg.textContent = 'Loading saved numbers…'; }
-  function updateCounts() {
-    document.getElementById('nProj').textContent = Object.keys(data.projects).length;
-    document.getElementById('nSales').textContent = Object.keys(data.sales).length;
-    document.getElementById('hudNProj').textContent = Object.keys(data.projects).length;
-    document.getElementById('hudNSales').textContent = Object.keys(data.sales).length;
-  }
-  function apply() { if (map) map.applyData(data); updateCounts(); }
-  function scheduleSave() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      const body = JSON.parse(JSON.stringify(data));
-      if (dbDoc) {
-        dbDoc.set(body).catch(err => {
-          if (err && err.code === 'invalid_argument') { readOnly = true; dataMsg.textContent = "You can view these numbers, but changes can't be saved here."; renderList(); }
-          else dataMsg.textContent = "Couldn't save the last change. Try again in a moment.";
-        });
-      } else {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(body)); } catch (e) {}
-      }
-    }, 400);
-  }
-  function dataChanged() { if (!loaded) return; apply(); scheduleSave(); }
-
-  const pop = document.getElementById('pop'), popTitle = document.getElementById('popTitle');
-  const popList = document.getElementById('popList'), popSearch = document.getElementById('popSearch');
-  const popCount = document.getElementById('popCount');
-  const LABELS = { projects: 'Projects', sales: 'Plug-in sales' };
-  // Country list comes from the map; if the 3D view failed, read names straight from the outline data
-  const allCountries = map ? map.countryList : (() => {
-    if (window.__countryList) return window.__countryList.map(([key, name]) => ({ key, name })).sort((a, b) => a.name.localeCompare(b.name));
-    try {
-      const DM = window.Datamap || window.Datamaps, topo = DM.prototype.worldTopo;
-      const geoms = topo.objects[Object.keys(topo.objects)[0]].geometries;
-      const seen = new Set(), list = [];
-      for (const g of geoms) {
-        if (g.id === 'ATA') continue;
-        const name = (g.properties && g.properties.name) || String(g.id);
-        const key = g.id && g.id !== '-99' ? String(g.id) : name;
-        if (!seen.has(key)) { seen.add(key); list.push({ key, name }); }
-      }
-      return list.sort((a, b) => a.name.localeCompare(b.name));
-    } catch (e) { return []; }
-  })();
-  let popSet = null;
-  const tickedText = set => { const n = Object.keys(set).length; return `${n} ${n === 1 ? 'country' : 'countries'} ticked`; };
-  function openPop(which) {
-    if (popSet === which && pop.classList.contains('visible')) { closePop(); return; }
-    popSet = which; popTitle.textContent = LABELS[which]; popSearch.value = '';
-    pop.classList.add('visible'); renderList();
-  }
-  function closePop() { pop.classList.remove('visible'); popSet = null; }
-  function renderList() {
-    if (!popSet || !pop.classList.contains('visible')) return;
-    const set = data[popSet], q = popSearch.value.trim().toLowerCase();
-    const items = allCountries.filter(c => !q || c.name.toLowerCase().includes(q));
-    popCount.textContent = tickedText(set);
-    popList.textContent = '';
-    if (!items.length) {
-      const li = document.createElement('li'); li.className = 'empty';
-      li.textContent = allCountries.length ? 'No countries match.' : "The country list couldn't load.";
-      popList.appendChild(li); return;
-    }
-    const frag = document.createDocumentFragment();
-    for (const c of items) {
-      const li = document.createElement('li');
-      const label = document.createElement('label');
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!set[c.key]; cb.disabled = readOnly;
-      const name = document.createElement('span'); name.textContent = c.name;
-      label.append(cb, name);
-      const num = document.createElement('input');
-      num.type = 'number'; num.min = '1'; num.step = '1'; num.inputMode = 'numeric';
-      num.value = set[c.key] || ''; num.disabled = readOnly || !set[c.key];
-      num.setAttribute('aria-label', `${LABELS[popSet]} in ${c.name}`);
-      cb.addEventListener('change', () => {
-        const cur = data[popSet];
-        if (cb.checked) { cur[c.key] = Math.max(1, parseInt(num.value, 10) || 1); num.value = cur[c.key]; num.disabled = false; }
-        else { delete cur[c.key]; num.value = ''; num.disabled = true; }
-        popCount.textContent = tickedText(cur);
-        dataChanged();
-      });
-      num.addEventListener('input', () => { const n = parseInt(num.value, 10); if (n > 0) { data[popSet][c.key] = Math.min(n, 1e7); dataChanged(); } });
-      num.addEventListener('blur', () => { const cur = popSet && data[popSet]; if (cur && cur[c.key]) num.value = cur[c.key]; });
-      li.append(label, num);
-      frag.appendChild(li);
-    }
-    popList.appendChild(frag);
-  }
-  popSearch.addEventListener('input', renderList);
-  document.getElementById('popClose').addEventListener('click', closePop);
-  document.getElementById('popClear').addEventListener('click', () => { if (popSet && !readOnly) { data[popSet] = {}; dataChanged(); renderList(); } });
-  btnProj.addEventListener('click', () => openPop('projects'));
-  btnSales.addEventListener('click', () => openPop('sales'));
-  hudProj.addEventListener('click', () => openPop('projects'));
-  hudSales.addEventListener('click', () => openPop('sales'));
-
-  if (inClaude) {
-    const giveUp = setTimeout(() => { if (!loaded) setLoaded("Saved numbers couldn't be loaded. Reload the page to try again before editing."); }, 12000);
-    window.claude.use('db').then(db => {
-      if (!db) {
-        clearTimeout(giveUp);
-        try { const raw = localStorage.getItem(LS_KEY); if (raw) data = sanitize(JSON.parse(raw)); } catch (e) {}
-        apply(); setLoaded("Saved numbers aren't available here, so changes stay on this iPad only.");
-        return;
-      }
-      dbDoc = db.doc('settings/data');
-      dbDoc.onSnapshot(snap => {
-        const d = snap.exists ? sanitize(snap.data()) : { projects: {}, sales: {} };
-        if (!same(d, data)) { data = d; apply(); renderList(); }
-        if (!loaded) {
-          clearTimeout(giveUp);
-          const p = Object.keys(data.projects).length, s = Object.keys(data.sales).length;
-          setLoaded(`Loaded ${p} ${p === 1 ? 'country' : 'countries'} with projects and ${s} with plug-in sales.`);
-        }
-      }, () => { clearTimeout(giveUp); dbDoc = null; setLoaded("Saved numbers couldn't be loaded. Reload the page to try again before editing."); });
-    });
-  } else {
-    try { const raw = localStorage.getItem(LS_KEY); if (raw) data = sanitize(JSON.parse(raw)); } catch (e) {}
-  }
-  apply();
-
+  setInterval(() => { const r = Math.max(10, lensMm * pxPerMmNow()); if (Math.abs(r - lensR) > 0.5) sizeLens(); }, 2000);
 
   // ---------- Loop ----------
-  let last = performance.now();
-  let shown = false;
+  let shownPos = 0, shown = false, last = performance.now();
   function tick() {
-    const now = performance.now();
-    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    const now = performance.now(), dt = Math.min((now - last) / 1000, 0.05); last = now;
     const p = window.primaryPuck || null;
-    const md = puckMode(p);
-    if (map) map.update(dt, p, md, lensR);
-    if (p) {
+    const target = layerPos(p);
+    shownPos += (target - shownPos) * (reduceMotion ? 1 : 1 - Math.exp(-dt * 14));
+    if (p && ready) {
+      // Copy the matching patch of the chosen layer(s) into the lens, 1:1 with the body underneath
+      const sx = (p.x - lensR) * dpr, sy = (p.y - lensR) * dpr, sw = lensR * 2 * dpr;
+      const lo = Math.floor(shownPos + 1e-6), t = shownPos - lo;
+      const A = ORDER[Math.max(0, Math.min(4, lo + 2))], B = ORDER[Math.max(0, Math.min(4, lo + 3))];
+      lctx.setTransform(1, 0, 0, 1, 0, 0);
+      lctx.globalAlpha = 1; lctx.fillStyle = '#1a272e'; lctx.fillRect(0, 0, sw, sw);
+      lctx.drawImage(layers[A], sx, sy, sw, sw, 0, 0, sw, sw);
+      if (t > 0.002 && B !== A) { lctx.globalAlpha = t; lctx.drawImage(layers[B], sx, sy, sw, sw, 0, 0, sw, sw); }
+      lctx.globalAlpha = 1;
       lens.style.left = p.x + 'px'; lens.style.top = p.y + 'px';
-      modeLabels.style.left = p.x + 'px'; modeLabels.style.top = (p.y - lensR - labelMm * pxPerMmNow()) + 'px';
-      lblP.classList.toggle('on', md.t >= 0.5 && md.which === 'projects');
-      lblS.classList.toggle('on', md.t >= 0.5 && md.which === 'sales');
-      lblM.classList.toggle('on', md.t < 0.5);
+      modeLabels.style.left = p.x + 'px';
+      modeLabels.style.top = (p.y - lensR - labelMm * pxPerMmNow()) + 'px';
+      const active = Math.round(shownPos);
+      labelSpans.forEach(sp => sp.classList.toggle('on', +sp.dataset.i === active));
       if (!shown) { lens.style.display = 'block'; modeLabels.style.display = 'block'; shown = true; }
     } else if (shown) {
       lens.style.display = 'none'; modeLabels.style.display = 'none'; shown = false;
